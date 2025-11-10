@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WPMA.io - KI-gestützte WordPress Management Platform</title>
+    <meta name="description" content="Automatisiere dein WordPress Management mit KI. Proaktive Wartung, Sicherheit und Performance-Optimierung für deine WordPress-Sites.">
+    <link rel="icon" href="/favicon.ico">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+            padding: 20px 0;
+        }
+        
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #fff;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-block;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.3);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding: 160px 0 120px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1000px;
+            height: 1000px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero-gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero p {
+            font-size: 20px;
+            color: rgba(255,255,255,0.7);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+        
+        .hero-cta {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 48px;
+            margin: 80px auto;
+            max-width: 900px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+        }
+        
+        /* Features */
+        .features {
+            padding: 120px 0;
+            background: rgba(255,255,255,0.02);
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+        
+        .section-header h2 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        
+        .section-header p {
+            font-size: 20px;
+            color: rgba(255,255,255,0.6);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 40px;
+            transition: all 0.3s;
+        }
+        
+        .feature-card:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateY(-4px);
+        }
+        
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 24px;
+        }
+        
+        .feature-card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .feature-card p {
+            color: rgba(255,255,255,0.7);
+            line-height: 1.6;
+        }
+        
+        /* USP Section */
+        .usp {
+            padding: 120px 0;
+        }
+        
+        .usp-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 80px;
+            align-items: center;
+        }
+        
+        .usp-content h2 {
+            font-size: 40px;
+            font-weight: 800;
+            margin-bottom: 24px;
+        }
+        
+        .usp-content p {
+            font-size: 18px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.8;
+            margin-bottom: 32px;
+        }
+        
+        .usp-list {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+        
+        .usp-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .usp-list li::before {
+            content: '✓';
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .usp-visual {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+        }
+        
+        .usp-visual-icon {
+            font-size: 120px;
+            margin-bottom: 24px;
+        }
+        
+        /* CTA Section */
+        .cta-section {
+            padding: 120px 0;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+        
+        .cta-section h2 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 24px;
+        }
+        
+        .cta-section p {
+            font-size: 20px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* Footer */
+        .footer {
+            background: rgba(0,0,0,0.5);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 48px 0;
+            text-align: center;
+        }
+        
+        .footer p {
+            color: rgba(255,255,255,0.5);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 40px;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+                gap: 32px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .usp-grid {
+                grid-template-columns: 1fr;
+                gap: 48px;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .section-header h2 {
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="container nav-content">
+            <a href="/" class="logo">WPMA.io</a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#usp">Vorteile</a></li>
+                <li><a href="https://app.wpma.io/auth/login" class="btn-primary">Zur App →</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <h1>
+                    KI-gestützte<br>
+                    <span class="hero-gradient-text">WordPress Management</span><br>
+                    Platform
+                </h1>
+                <p>Automatisiere dein WordPress Management mit künstlicher Intelligenz. Proaktive Wartung, automatische Updates, Sicherheits-Monitoring und Performance-Optimierung – alles aus einer Hand.</p>
+                <div class="hero-cta">
+                    <a href="https://app.wpma.io/auth/register" class="btn-primary">Jetzt starten – Kostenlos testen</a>
+                    <a href="#features" class="btn-secondary">Mehr erfahren</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="container">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Automatisches Monitoring</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">99.9%</div>
+                    <div class="stat-label">Uptime Garantie</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">&lt;1s</div>
+                    <div class="stat-label">Reaktionszeit bei Problemen</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features" id="features">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Alles, was du brauchst</h2>
+                    <p>Eine komplette WordPress Management Platform mit KI-Unterstützung</p>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>KI-Automatisierung</h3>
+                        <p>Intelligente Automatisierung von Updates, Backups und Wartungsaufgaben. Die KI lernt deine WordPress-Sites kennen und optimiert kontinuierlich.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <h3>Proaktive Sicherheit</h3>
+                        <p>Echtzeit-Bedrohungserkennung, automatische Sicherheits-Patches und kontinuierliche Schwachstellen-Scans zum Schutz deiner Sites.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Performance-Optimierung</h3>
+                        <p>Automatische Performance-Analysen, Caching-Optimierung und Datenbankbereinigung für blitzschnelle Ladezeiten.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h3>Smart Updates</h3>
+                        <p>KI-gesteuerte Update-Strategie mit automatischen Rollback-Funktionen. Updates werden intelligent geplant und durchgeführt.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Zentral-Dashboard</h3>
+                        <p>Verwalte alle deine WordPress-Sites von einem übersichtlichen Dashboard aus. Behalte den Überblick über Status, Performance und Sicherheit.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">💾</div>
+                        <h3>Automatische Backups</h3>
+                        <p>Tägliche automatische Backups mit intelligenter Versionierung. Stelle deine Sites mit einem Klick wieder her.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- USP Section -->
+        <section class="usp" id="usp">
+            <div class="container">
+                <div class="usp-grid">
+                    <div class="usp-content">
+                        <h2>Warum WPMA.io?</h2>
+                        <p>Während andere Tools nur reaktiv arbeiten, nutzt WPMA.io künstliche Intelligenz, um Probleme zu erkennen, bevor sie entstehen.</p>
+                        
+                        <ul class="usp-list">
+                            <li>KI-gestützte Vorhersage von Problemen</li>
+                            <li>Automatische Problemlösung ohne manuelle Eingriffe</li>
+                            <li>Zeitersparnis von bis zu 95% bei der WordPress-Wartung</li>
+                            <li>Reduzierte Ausfallzeiten und höhere Verfügbarkeit</li>
+                            <li>Volle Kontrolle über alle deine WordPress-Sites</li>
+                        </ul>
+                        
+                        <a href="https://app.wpma.io/auth/register" class="btn-primary">Jetzt kostenlos testen</a>
+                    </div>
+                    
+                    <div class="usp-visual">
+                        <div class="usp-visual-icon">🚀</div>
+                        <h3 style="font-size: 32px; margin-bottom: 16px;">95% weniger Wartungszeit</h3>
+                        <p style="color: rgba(255,255,255,0.7);">Konzentriere dich auf dein Business, während WPMA.io sich um deine WordPress-Sites kümmert.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="cta-section">
+            <div class="container">
+                <h2>Bereit für intelligentes WordPress Management?</h2>
+                <p>Starte jetzt kostenlos und erlebe, wie KI dein WordPress Management revolutioniert.</p>
+                <div class="hero-cta">
+                    <a href="https://app.wpma.io/auth/register" class="btn-primary">Kostenlos starten →</a>
+                    <a href="https://app.wpma.io/auth/login" class="btn-secondary">Zum Login</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 WPMA.io - KI-gestützte WordPress Management Platform</p>
+        </div>
+    </footer>
+</body>
+</html>

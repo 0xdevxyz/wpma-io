@@ -1,0 +1,71 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wpma-backend
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      NODE_ENV: "production"
+      PORT: "8000"
+      DATABASE_URL: "postgresql://wpma_user:uvdSDE4g69tRg146zFE%2F082HnAz5ICVl5KKcVkNE3bU%3D@shared-postgres:5432/wpma_db"
+      REDIS_HOST: "shared-redis"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "04/jdoPGip+v2Yqoeo0+nNSIvxZsC/u+Q+E4qBrGA0E="
+      REDIS_DB: "3"
+      JWT_SECRET: "1BIzpdRA6fF3jzfR4w5T4Pt3h5hzTpeeyFBM2Qf17G69v+gx+w1oe2NvkkRE2CrIYol7WTlxhxu/ivlWSXTqTA=="
+      VIRTUAL_HOST: "api.wpma.io"
+      LETSENCRYPT_HOST: "api.wpma.io"
+      VIRTUAL_PORT: "8000"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+    networks:
+      - proxy-network
+      - shared-network
+      - wpma-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./wpma-frontend
+      dockerfile: Dockerfile
+    container_name: wpma-frontend
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "https://api.wpma.io"
+      NODE_ENV: "production"
+      VIRTUAL_HOST: "app.wpma.io"
+      LETSENCRYPT_HOST: "app.wpma.io"
+      VIRTUAL_PORT: "3000"
+    networks:
+      - proxy-network
+      - wpma-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  landing:
+    image: nginx:alpine
+    container_name: wpma-landing
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - ./landing:/usr/share/nginx/html
+      - ./landing/nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      VIRTUAL_HOST: "wpma.io,www.wpma.io"
+      LETSENCRYPT_HOST: "wpma.io,www.wpma.io"
+    networks:
+      - proxy-network
+    restart: unless-stopped
+
+networks:
+  proxy-network:
+    external: true
+  shared-network:
+    external: true
+  wpma-network:
+    driver: bridge
+
+# Production-spezifische Erweiterungen hinzugefügt in der Basis-Config

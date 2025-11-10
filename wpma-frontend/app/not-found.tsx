@@ -1,0 +1,9 @@
+'use client';
+
+export default function NotFound() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <h1 className="text-2xl font-bold">404 – Seite nicht gefunden</h1>
+    </div>
+  );
+}
