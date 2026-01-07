@@ -571,13 +571,22 @@ class SitesController {
                 throw new ValidationError('URL is required');
             }
             
+            // Normalize URL - add https:// if protocol is missing
+            let normalizedUrl = url.trim();
+            if (!normalizedUrl.match(/^https?:\/\//i)) {
+                normalizedUrl = 'https://' + normalizedUrl;
+            }
+            
             // Validate URL format
             let siteUrl;
             try {
-                siteUrl = new URL(url);
+                siteUrl = new URL(normalizedUrl);
             } catch (e) {
                 throw new ValidationError('Invalid URL format');
             }
+            
+            // Use normalized URL for all further operations
+            url = normalizedUrl;
             
             // Extract domain (everything after https://)
             const domain = siteUrl.hostname.replace(/^www\./, '');

@@ -23,6 +23,7 @@
   "author": "WPMA.io Team",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
     "@sentry/node": "^9.36.0",
     "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",

@@ -66,13 +66,23 @@ class WPMA_Core {
     
     public function add_admin_menu() {
         add_menu_page(
-            'WPMA Agent',
-            'WPMA Agent',
+            'WPMA.io',
+            'WPMA.io',
             'manage_options',
             'wpma-agent',
             array($this, 'admin_page'),
-            'dashicons-shield',
+            'dashicons-superhero-alt',
             30
+        );
+        
+        // Erstes Untermenü umbenennen (ersetzt automatisch generierten Eintrag)
+        add_submenu_page(
+            'wpma-agent',
+            'Dashboard',
+            'Dashboard',
+            'manage_options',
+            'wpma-agent',
+            array($this, 'admin_page')
         );
         
         add_submenu_page(
@@ -465,11 +475,8 @@ class WPMA_Core {
     }
     
     public function admin_notices() {
-        if (!$this->api_key) {
-            echo '<div class="notice notice-warning is-dismissible">
-                <p><strong>WPMA Agent:</strong> Please configure your API key in the <a href="' . admin_url('admin.php?page=wpma-agent-settings') . '">settings</a>.</p>
-            </div>';
-        }
+        // Zeige keine Notice hier - Onboarding wird im Dashboard angezeigt
+        // Die alte Warnung wurde entfernt für bessere UX
     }
     
     private function log($type, $message, $data = null) {

@@ -71,6 +71,8 @@ class MonitoringService {
 
     async getUptimeStats(siteId, hours = 24) {
         try {
+            // Sichere parametrisierte Query - verhindert SQL-Injection
+            const safeHours = Math.max(1, Math.min(8760, parseInt(hours, 10) || 24));
             const result = await query(
                 `SELECT 
                     COUNT(*) as total_checks,
@@ -80,8 +82,8 @@ class MonitoringService {
                     MIN(response_time) as min_response_time
                 FROM uptime_checks 
                 WHERE site_id = $1 
-                AND checked_at >= NOW() - INTERVAL '${hours} hours'`,
-                [siteId]
+                AND checked_at >= NOW() - MAKE_INTERVAL(hours => $2)`,
+                [siteId, safeHours]
             );
 
             const stats = result.rows[0];

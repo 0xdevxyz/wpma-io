@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, CheckCircle, Globe, Package, Zap, ExternalLink, Copy, Check } from 'lucide-react';
+import { X, Download, CheckCircle, Globe, Package, Zap, ExternalLink, Copy, Check, ArrowRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { toast } from 'react-hot-toast';
 
@@ -20,8 +21,14 @@ interface PluginSetupModalProps {
 
 export const PluginSetupModal: React.FC<PluginSetupModalProps> = ({ isOpen, onClose, siteData }) => {
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
 
   if (!siteData) return null;
+
+  const handleGoToSite = () => {
+    onClose();
+    router.push(`/sites/${siteData.id}`);
+  };
 
   const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/sites/plugin/download/${siteData.setupToken}`;
 
@@ -209,13 +216,26 @@ export const PluginSetupModal: React.FC<PluginSetupModalProps> = ({ isOpen, onCl
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
                   <Button variant="secondary" onClick={onClose} className="flex-1">
                     Später installieren
                   </Button>
                   <Button onClick={handleDownload} className="flex-1">
                     <Download className="w-4 h-4 mr-2" />
                     Plugin herunterladen
+                  </Button>
+                </div>
+                
+                {/* Already connected option */}
+                <div className="text-center pt-2">
+                  <p className="text-sm text-gray-500 mb-2">Plugin bereits installiert und verbunden?</p>
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleGoToSite}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    Zur Site-Übersicht
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
               </div>

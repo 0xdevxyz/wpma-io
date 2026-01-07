@@ -40,18 +40,32 @@ export const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClos
 
   const urlValue = watch('url');
 
+  // URL normalisieren: Protokoll hinzufügen falls fehlt
+  const normalizeUrl = (url: string): string => {
+    let normalized = url.trim();
+    // Entferne führende/folgende Slashes
+    normalized = normalized.replace(/^\/+|\/+$/g, '');
+    // Füge https:// hinzu, wenn kein Protokoll vorhanden
+    if (!normalized.match(/^https?:\/\//i)) {
+      normalized = 'https://' + normalized;
+    }
+    return normalized;
+  };
+
   const handleFetchMetadata = async () => {
     if (!urlValue) {
       toast.error('Bitte geben Sie eine URL ein');
       return;
     }
 
+    const normalizedUrl = normalizeUrl(urlValue);
+    
     setIsFetchingMetadata(true);
     setMetadataError('');
     setMetadata(null);
 
     try {
-      const response = await sitesApi.fetchSiteMetadata(urlValue);
+      const response = await sitesApi.fetchSiteMetadata(normalizedUrl);
       
       if (response.success) {
         setMetadata(response.data);
@@ -167,15 +181,15 @@ export const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClos
                       <input
                         id="url"
                         type="text"
-                        placeholder="https://example.com"
+                        placeholder="example.com"
                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
                           errors.url ? 'border-red-500' : 'border-gray-300'
                         }`}
                         {...register('url', {
                           required: 'URL ist erforderlich',
                           pattern: {
-                            value: /^https?:\/\/.+/,
-                            message: 'Bitte geben Sie eine gültige URL ein (inkl. http:// oder https://)'
+                            value: /^(https?:\/\/)?[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/,
+                            message: 'Bitte geben Sie eine gültige Domain ein (z.B. example.com)'
                           }
                         })}
                         disabled={isSubmitting || isFetchingMetadata}

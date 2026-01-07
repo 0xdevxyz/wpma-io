@@ -1,31 +1,31 @@
 const { Pool } = require('pg');
 
-// Debug: Environment-Variablen ausgeben
-console.log('=== DATABASE DEBUG ===');
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('All ENV vars starting with DB:', Object.keys(process.env).filter(key => key.includes('DB')));
-console.log('=====================');
+// Sicherheitscheck: DATABASE_URL ist erforderlich
+if (!process.env.DATABASE_URL) {
+    console.error('❌ FATAL: DATABASE_URL environment variable is required');
+    console.error('Please set DATABASE_URL in your environment or .env file');
+    process.exit(1);
+}
 
-// Fallback-Konfiguration wenn DATABASE_URL nicht gesetzt ist
-const databaseConfig = process.env.DATABASE_URL ? {
+// Debug-Ausgabe nur in Development (ohne sensible Daten)
+if (process.env.NODE_ENV === 'development') {
+    console.log('=== DATABASE DEBUG ===');
+    console.log('DATABASE_URL:', process.env.DATABASE_URL ? '[SET]' : '[NOT SET]');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('=====================');
+}
+
+// Sichere Konfiguration - nur über Environment-Variable
+const databaseConfig = {
     connectionString: process.env.DATABASE_URL,
-    ssl: false, // PostgreSQL unterstützt kein SSL, daher explizit deaktivieren
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-} : {
-    user: 'wpma_user',
-    host: 'shared-postgres',
-    database: 'wpma_db',
-    password: 'uvdSDE4g69tRg146zFE/082HnAz5ICVl5KKcVkNE3bU=',
-    port: 5432,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    max: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
+    idleTimeoutMillis: parseInt(process.env.DATABASE_IDLE_TIMEOUT || '30000', 10),
+    connectionTimeoutMillis: parseInt(process.env.DATABASE_CONNECT_TIMEOUT || '5000', 10),
 };
 
-console.log('Using database config:', databaseConfig);
+// Keine sensiblen Daten loggen!
+console.log('Database pool configured with max connections:', databaseConfig.max);
 
 const pool = new Pool(databaseConfig);
 

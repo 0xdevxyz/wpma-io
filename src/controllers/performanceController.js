@@ -5,9 +5,11 @@ class PerformanceController {
     async getMetrics(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -26,10 +28,12 @@ class PerformanceController {
     async getHistory(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
             const days = parseInt(req.query.days) || 7;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -47,9 +51,11 @@ class PerformanceController {
     async analyze(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -67,9 +73,11 @@ class PerformanceController {
     async getRecommendations(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -95,10 +103,12 @@ class PerformanceController {
     async getStatistics(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
             const days = parseInt(req.query.days) || 30;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {

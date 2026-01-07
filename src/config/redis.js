@@ -1,23 +1,31 @@
 const redis = require('redis');
 
+// Sicherheitscheck: REDIS_PASSWORD ist erforderlich in Production
+if (process.env.NODE_ENV === 'production' && !process.env.REDIS_PASSWORD) {
+    console.error('❌ FATAL: REDIS_PASSWORD environment variable is required in production');
+    process.exit(1);
+}
+
 const client = redis.createClient({
     socket: {
-        host: process.env.REDIS_HOST || 'shared-redis',
-        port: process.env.REDIS_PORT || 6379
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        connectTimeout: 5000,
     },
-    password: process.env.REDIS_PASSWORD || '04/jdoPGip+v2Yqoeo0+nNSIvxZsC/u+Q+E4qBrGA0E=',
-    database: process.env.REDIS_DB || 3,
-    retry_strategy: (options) => {
-        if (options.error && options.error.code === 'ECONNREFUSED') {
-            return new Error('Redis server connection refused');
+    password: process.env.REDIS_PASSWORD || undefined,
+    database: parseInt(process.env.REDIS_DB || '0', 10),
+    // Moderne Redis-Client retry Konfiguration
+    socket: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        reconnectStrategy: (retries) => {
+            if (retries > 10) {
+                console.error('Redis: Max retries reached, giving up');
+                return new Error('Redis max retries reached');
+            }
+            // Exponential backoff: 100ms, 200ms, 400ms, ...
+            return Math.min(retries * 100, 3000);
         }
-        if (options.total_retry_time > 1000 * 60 * 60) {
-            return new Error('Redis retry time exhausted');
-        }
-        if (options.attempt > 10) {
-            return undefined;
-        }
-        return Math.min(options.attempt * 100, 3000);
     }
 });
 

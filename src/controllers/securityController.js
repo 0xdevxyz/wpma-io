@@ -5,9 +5,11 @@ class SecurityController {
     async getStatus(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -47,9 +49,10 @@ class SecurityController {
                 return res.json(result);
             }
 
+            const userId = req.user?.userId || req.user?.id;
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -67,9 +70,11 @@ class SecurityController {
     async getVulnerabilities(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -87,10 +92,12 @@ class SecurityController {
     async getHistory(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
             const limit = parseInt(req.query.limit) || 10;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {
@@ -108,9 +115,11 @@ class SecurityController {
     async getStatistics(req, res) {
         try {
             const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+            
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
-                [siteId, req.user.id]
+                [siteId, userId]
             );
 
             if (siteCheck.rows.length === 0) {

@@ -5,12 +5,29 @@ const http = require('http');
 const socketIo = require('socket.io');
 const rateLimit = require('express-rate-limit');
 const fs = require('fs');
+
+// Environment laden
 if (fs.existsSync('.env')) {
-  require('dotenv').config();
-  console.log('✅ .env geladen');
-} else {
-  console.log('ℹ️ Keine .env-Datei gefunden – Docker ENV wird verwendet');
+    require('dotenv').config();
 }
+
+// Logger und Sentry initialisieren (muss früh geladen werden)
+const { logger, requestLogger } = require('./utils/logger');
+const { 
+    initializeSentry, 
+    sentryRequestHandler, 
+    sentryTracingHandler, 
+    sentryErrorHandler,
+    setSentryContext 
+} = require('./config/sentry');
+
+// Sentry initialisieren
+initializeSentry();
+
+logger.info('Starting WPMA API Server', { 
+    nodeEnv: process.env.NODE_ENV,
+    nodeVersion: process.version 
+});
 
 
 // Import Routes
@@ -22,9 +39,18 @@ const performanceRoutes = require('./routes/performance');
 const aiRoutes = require('./routes/ai');
 const monitoringRoutes = require('./routes/monitoring');
 const emailRecoveryRoutes = require('./routes/emailRecovery');
+const updatesRoutes = require('./routes/updates');
+const bulkRoutes = require('./routes/bulk');
+const reportsRoutes = require('./routes/reports');
+const teamRoutes = require('./routes/team');
+const whiteLabelRoutes = require('./routes/whiteLabel');
+const notificationsRoutes = require('./routes/notifications');
+const chatRoutes = require('./routes/chat');
+const stagingRoutes = require('./routes/staging');
+const incrementalBackupRoutes = require('./routes/incrementalBackup');
 
 // Import Middleware
-const { errorHandler } = require('./middleware/errorHandler');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { performanceMiddleware } = require('./middleware/performance');
 
 // Import Services
@@ -55,6 +81,10 @@ const limiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+// Sentry Request Handler (muss als erstes eingebunden werden)
+app.use(sentryRequestHandler());
+app.use(sentryTracingHandler());
 
 // Global Middleware
 app.use(helmet({
@@ -87,7 +117,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     maxAge: 600 // Cache preflight für 10 Minuten
 };
@@ -96,6 +126,13 @@ app.use(cors(corsOptions));
 app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Request-Logger (strukturiertes Logging)
+app.use(requestLogger);
+
+// Sentry Context setzen
+app.use(setSentryContext);
+
 app.use(performanceMiddleware);
 
 // Make io accessible to routes
@@ -113,6 +150,15 @@ app.use('/api/v1/performance', performanceRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/monitoring', monitoringRoutes);
 app.use('/api/v1/email-recovery', emailRecoveryRoutes);
+app.use('/api/v1/updates', updatesRoutes);
+app.use('/api/v1/bulk', bulkRoutes);
+app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/team', teamRoutes);
+app.use('/api/v1/white-label', whiteLabelRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
+app.use('/api/v1/chat', chatRoutes);
+app.use('/api/v1/staging', stagingRoutes);
+app.use('/api/v1/incremental-backup', incrementalBackupRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -120,44 +166,90 @@ app.get('/health', (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        memory: process.memoryUsage()
+        memory: process.memoryUsage(),
+        version: process.env.APP_VERSION || '1.0.0'
     });
 });
+
+// 404 Handler für nicht existierende Routes
+app.use(notFoundHandler);
+
+// Sentry Error Handler (vor dem eigenen Error Handler)
+app.use(sentryErrorHandler());
 
 // Error Handler
 app.use(errorHandler);
 
 // Socket.io Connection Handler
 io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    logger.debug('WebSocket client connected', { socketId: socket.id });
     
     socket.on('join_user_room', (userId) => {
         socket.join(`user_${userId}`);
-        console.log(`User ${userId} joined room`);
+        logger.debug('User joined room', { userId, socketId: socket.id });
     });
     
     socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
+        logger.debug('WebSocket client disconnected', { socketId: socket.id });
     });
 });
 
 // Initialize Services
 async function initializeServices() {
     try {
+        logger.info('Initializing services...');
         await initializeDatabase();
+        logger.info('Database initialized');
         await initializeRedis();
+        logger.info('Redis initialized');
         await startBackgroundJobs();
-        console.log('All services initialized successfully');
+        logger.info('Background jobs started');
+        logger.info('All services initialized successfully');
     } catch (error) {
-        console.error('Service initialization failed:', error);
+        logger.error('Service initialization failed', { 
+            error: error.message, 
+            stack: error.stack 
+        });
         process.exit(1);
     }
 }
 
+// Graceful Shutdown
+const gracefulShutdown = (signal) => {
+    logger.info(`${signal} received, shutting down gracefully...`);
+    
+    server.close(() => {
+        logger.info('HTTP server closed');
+        process.exit(0);
+    });
+
+    // Force close nach 10 Sekunden
+    setTimeout(() => {
+        logger.error('Forced shutdown after timeout');
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Unhandled Errors abfangen
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection', { reason: String(reason) });
+});
+
 // Start Server
 initializeServices().then(() => {
     server.listen(PORT, () => {
-        console.log(`WPMA API Server running on port ${PORT}`);
+        logger.info(`WPMA API Server running on port ${PORT}`, {
+            port: PORT,
+            nodeEnv: process.env.NODE_ENV
+        });
     });
 });
 

@@ -65,6 +65,74 @@ class WPMA_API {
         return $this->make_request('GET', "/api/v1/ai/{$site_id}/insights", null, $api_key);
     }
     
+    // ==========================================
+    // KI-ANALYSE METHODEN
+    // ==========================================
+    
+    /**
+     * Sendet verfügbare Updates an WPMA.io
+     */
+    public function send_updates($site_id, $update_data) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('POST', "/api/v1/updates/{$site_id}/available", $update_data, $api_key);
+    }
+    
+    /**
+     * Fordert Update-Analyse von KI an
+     */
+    public function request_update_analysis($site_id, $updates) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('POST', "/api/v1/ai/{$site_id}/analyze-updates", array(
+            'updateType' => 'mixed',
+            'updates' => $updates
+        ), $api_key);
+    }
+    
+    /**
+     * Sendet Update-Report nach durchgeführten Updates
+     */
+    public function send_update_report($site_id, $report_data) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('POST', "/api/v1/updates/{$site_id}/report", $report_data, $api_key);
+    }
+    
+    /**
+     * Holt vollständige KI-Analyse für die Site
+     */
+    public function request_full_analysis($site_id) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('POST', "/api/v1/ai/{$site_id}/analyze", null, $api_key);
+    }
+    
+    /**
+     * KI-Chat für Support
+     */
+    public function ai_chat($site_id, $message, $history = array()) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('POST', "/api/v1/ai/{$site_id}/chat", array(
+            'message' => $message,
+            'history' => $history
+        ), $api_key);
+    }
+    
+    /**
+     * Holt proaktive Problemerkennung
+     */
+    public function get_proactive_issues($site_id) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('GET', "/api/v1/ai/{$site_id}/proactive", null, $api_key);
+    }
+    
+    /**
+     * Fordert Auto-Fix für ein Problem an
+     */
+    public function request_auto_fix($site_id, $problem) {
+        $api_key = get_option('wpma_api_key');
+        return $this->make_request('POST', "/api/v1/ai/{$site_id}/auto-fix", array(
+            'problem' => $problem
+        ), $api_key);
+    }
+    
     private function make_request($method, $endpoint, $data = null, $api_key = null) {
         $url = $this->api_url . $endpoint;
         

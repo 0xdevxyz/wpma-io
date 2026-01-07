@@ -86,7 +86,30 @@ class SecurityService {
                 return { success: false, error: 'Keine Security-Scans verfügbar' };
             }
 
-            return { success: true, data: result.rows[0] };
+            // Konvertiere zu camelCase für Frontend
+            const row = result.rows[0];
+            const scanResults = typeof row.scan_results === 'string' 
+                ? JSON.parse(row.scan_results) 
+                : (row.scan_results || {});
+
+            const data = {
+                id: row.id,
+                siteId: row.site_id,
+                scanType: row.scan_type,
+                status: row.status,
+                securityScore: row.security_score || scanResults.security_score || 0,
+                sslEnabled: row.ssl_valid ?? scanResults.ssl_enabled ?? false,
+                debugMode: row.debug_mode ?? scanResults.debug_mode ?? false,
+                failedLogins: scanResults.failed_logins || 0,
+                threatsFound: row.threats_found || 0,
+                outdatedPlugins: row.outdated_plugins || scanResults.outdated_plugins?.length || 0,
+                outdatedThemes: row.outdated_themes || scanResults.outdated_themes?.length || 0,
+                vulnerabilities: row.vulnerabilities || [],
+                scanResults: scanResults,
+                createdAt: row.created_at
+            };
+
+            return { success: true, data };
         } catch (error) {
             console.error('Error getting latest scan:', error);
             return { success: false, error: error.message };
@@ -223,8 +246,10 @@ class SecurityService {
 
     async cleanupOldScans() {
         try {
+            // Sichere parametrisierte Query - verhindert SQL-Injection
             const result = await query(
-                `DELETE FROM security_scans WHERE created_at < NOW() - INTERVAL '${this.scansRetentionDays} days'`
+                `DELETE FROM security_scans WHERE created_at < NOW() - MAKE_INTERVAL(days => $1)`,
+                [this.scansRetentionDays]
             );
             console.log(`Cleaned up ${result.rowCount} old security scans`);
             return { success: true, deleted: result.rowCount };

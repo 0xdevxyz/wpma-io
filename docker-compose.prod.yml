@@ -1,3 +1,10 @@
+# ============================================
+# WPMA.io Production Docker Compose
+# ============================================
+# WICHTIG: Erstelle eine .env Datei mit den Secrets!
+# Siehe: env.secure.template
+# ============================================
+
 services:
   backend:
     build:
@@ -7,18 +14,23 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      NODE_ENV: "production"
-      PORT: "8000"
-      DATABASE_URL: "postgresql://wpma_user:uvdSDE4g69tRg146zFE%2F082HnAz5ICVl5KKcVkNE3bU%3D@shared-postgres:5432/wpma_db"
-      REDIS_HOST: "shared-redis"
-      REDIS_PORT: "6379"
-      REDIS_PASSWORD: "04/jdoPGip+v2Yqoeo0+nNSIvxZsC/u+Q+E4qBrGA0E="
-      REDIS_DB: "3"
-      JWT_SECRET: "1BIzpdRA6fF3jzfR4w5T4Pt3h5hzTpeeyFBM2Qf17G69v+gx+w1oe2NvkkRE2CrIYol7WTlxhxu/ivlWSXTqTA=="
-      VIRTUAL_HOST: "api.wpma.io"
-      LETSENCRYPT_HOST: "api.wpma.io"
-      VIRTUAL_PORT: "8000"
-      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      NODE_ENV: production
+      PORT: ${PORT:-8000}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_HOST: ${REDIS_HOST:-shared-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_DB: ${REDIS_DB:-3}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      # Optional API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      # Reverse Proxy
+      VIRTUAL_HOST: ${VIRTUAL_HOST:-api.wpma.io}
+      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST:-api.wpma.io}
+      VIRTUAL_PORT: ${VIRTUAL_PORT:-8000}
     networks:
       - proxy-network
       - shared-network

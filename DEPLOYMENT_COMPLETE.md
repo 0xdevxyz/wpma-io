@@ -202,8 +202,8 @@ curl http://localhost:8000/health | jq .
 # PostgreSQL
 docker exec wpma-postgres pg_isready -U wpma_user
 
-# Redis
-docker exec wpma-redis redis-cli -a "04/jdoPGip+v2Yqoeo0+nNSIvxZsC/u+Q+E4qBrGA0E=" PING
+# Redis (Passwort aus .env verwenden)
+docker exec wpma-redis redis-cli -a "$REDIS_PASSWORD" PING
 ```
 
 ---

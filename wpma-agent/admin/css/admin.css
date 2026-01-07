@@ -1,0 +1,313 @@
+/**
+ * WPMA Agent Admin Styles
+ * Version: 1.0.0
+ */
+
+/* Variables */
+:root {
+    --wpma-primary: #667eea;
+    --wpma-primary-dark: #5a67d8;
+    --wpma-secondary: #764ba2;
+    --wpma-success: #00a32a;
+    --wpma-warning: #dba617;
+    --wpma-danger: #d63638;
+    --wpma-gray-100: #f9f9f9;
+    --wpma-gray-200: #f0f0f0;
+    --wpma-gray-300: #e5e5e5;
+    --wpma-gray-500: #757575;
+    --wpma-gray-700: #50575e;
+    --wpma-gray-900: #1d2327;
+}
+
+/* Global Reset */
+.wpma-dashboard *,
+.wpma-setup-wizard * {
+    box-sizing: border-box;
+}
+
+/* Cards */
+.wpma-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.wpma-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.wpma-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--wpma-gray-300);
+    background: var(--wpma-gray-100);
+}
+
+.wpma-card-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--wpma-gray-900);
+}
+
+.wpma-card-body {
+    padding: 20px;
+}
+
+/* Status Indicators */
+.wpma-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.wpma-status-success {
+    background: rgba(0, 163, 42, 0.1);
+    color: var(--wpma-success);
+}
+
+.wpma-status-warning {
+    background: rgba(219, 166, 23, 0.1);
+    color: var(--wpma-warning);
+}
+
+.wpma-status-danger {
+    background: rgba(214, 54, 56, 0.1);
+    color: var(--wpma-danger);
+}
+
+/* Buttons */
+.wpma-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.wpma-btn-primary {
+    background: linear-gradient(135deg, var(--wpma-primary), var(--wpma-secondary));
+    color: #fff;
+}
+
+.wpma-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    color: #fff;
+}
+
+.wpma-btn-secondary {
+    background: var(--wpma-gray-100);
+    color: var(--wpma-gray-900);
+    border: 1px solid var(--wpma-gray-300);
+}
+
+.wpma-btn-secondary:hover {
+    background: var(--wpma-gray-200);
+}
+
+/* Forms */
+.wpma-form-group {
+    margin-bottom: 20px;
+}
+
+.wpma-form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--wpma-gray-900);
+}
+
+.wpma-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid var(--wpma-gray-300);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.wpma-input:focus {
+    border-color: var(--wpma-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+/* Metrics Grid */
+.wpma-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+}
+
+.wpma-metric {
+    text-align: center;
+    padding: 16px;
+    background: var(--wpma-gray-100);
+    border-radius: 8px;
+}
+
+.wpma-metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--wpma-gray-900);
+    line-height: 1.2;
+}
+
+.wpma-metric-label {
+    font-size: 12px;
+    color: var(--wpma-gray-500);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Alerts */
+.wpma-alert {
+    padding: 14px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.wpma-alert-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+}
+
+.wpma-alert-success {
+    background: rgba(0, 163, 42, 0.1);
+    border-left: 4px solid var(--wpma-success);
+}
+
+.wpma-alert-warning {
+    background: rgba(219, 166, 23, 0.1);
+    border-left: 4px solid var(--wpma-warning);
+}
+
+.wpma-alert-danger {
+    background: rgba(214, 54, 56, 0.1);
+    border-left: 4px solid var(--wpma-danger);
+}
+
+.wpma-alert-info {
+    background: rgba(102, 126, 234, 0.1);
+    border-left: 4px solid var(--wpma-primary);
+}
+
+/* Checklist */
+.wpma-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.wpma-checklist li {
+    padding: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--wpma-gray-200);
+}
+
+.wpma-checklist li:last-child {
+    border-bottom: none;
+}
+
+.wpma-checklist .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.wpma-checklist .success .dashicons { color: var(--wpma-success); }
+.wpma-checklist .warning .dashicons { color: var(--wpma-warning); }
+.wpma-checklist .error .dashicons { color: var(--wpma-danger); }
+
+/* Core Web Vitals */
+.wpma-vitals {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.wpma-vital {
+    flex: 1;
+    background: var(--wpma-gray-200);
+    padding: 14px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.wpma-vital-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--wpma-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.wpma-vital-value {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.wpma-vital-value.good { color: var(--wpma-success); }
+.wpma-vital-value.needs-improvement { color: var(--wpma-warning); }
+.wpma-vital-value.poor { color: var(--wpma-danger); }
+
+/* Loading Spinner */
+.wpma-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.wpma-spinner {
+    animation: wpma-spin 1s linear infinite;
+}
+
+@keyframes wpma-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .wpma-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .wpma-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .wpma-vitals {
+        flex-direction: column;
+    }
+    
+    .wpma-actions-grid {
+        flex-direction: column;
+    }
+    
+    .wpma-action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+

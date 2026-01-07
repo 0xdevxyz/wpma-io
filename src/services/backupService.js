@@ -6,42 +6,59 @@ const { query } = require('../config/database');
 
 class BackupService {
     constructor() {
-        this.s3 = new AWS.S3({
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-            region: process.env.AWS_REGION
-        });
+        // Standard-Provider ermitteln
+        this.defaultProvider = process.env.IDRIVE_E2_ACCESS_KEY ? 'idrive_e2' : 'aws';
         
-        this.bucket = process.env.AWS_BACKUP_BUCKET;
+        console.log(`BackupService initialized. Default provider: ${this.defaultProvider}`);
     }
 
-    async createBackup(siteId, backupType = 'full', provider = 'aws') {
-        let s3Config;
-        let bucket;
-
+    /**
+     * Erstellt S3-Client basierend auf Provider
+     */
+    getS3Client(provider) {
         switch (provider) {
             case 'idrive_e2':
-                s3Config = {
-                    endpoint: `https://e2.idrive.com`,
-                    accessKeyId: process.env.IDRIVE_E2_ACCESS_KEY_ID,
-                    secretAccessKey: process.env.IDRIVE_E2_SECRET_ACCESS_KEY,
-                    s3ForcePathStyle: true,
-                    signatureVersion: 'v4'
+                // Stelle sicher, dass der Endpoint https:// hat
+                let endpoint = process.env.IDRIVE_E2_ENDPOINT || 'e2.idrivee2.com';
+                if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+                    endpoint = 'https://' + endpoint;
+                }
+                return {
+                    client: new AWS.S3({
+                        endpoint: endpoint,
+                        accessKeyId: process.env.IDRIVE_E2_ACCESS_KEY,
+                        secretAccessKey: process.env.IDRIVE_E2_SECRET_KEY,
+                        s3ForcePathStyle: true,
+                        signatureVersion: 'v4',
+                        region: process.env.IDRIVE_E2_REGION || 'e2'
+                    }),
+                    bucket: process.env.IDRIVE_E2_BUCKET
                 };
-                bucket = process.env.IDRIVE_E2_BACKUP_BUCKET;
-                break;
             case 'aws':
             default:
-                s3Config = {
-                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                    region: process.env.AWS_REGION
+                return {
+                    client: new AWS.S3({
+                        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                        region: process.env.AWS_REGION || 'eu-central-1'
+                    }),
+                    bucket: process.env.AWS_S3_BUCKET
                 };
-                bucket = process.env.AWS_BACKUP_BUCKET;
-                break;
         }
+    }
 
-        const s3 = new AWS.S3(s3Config);
+    async createBackup(siteId, backupType = 'full', provider = null) {
+        // Verwende Standard-Provider wenn keiner angegeben
+        provider = provider || this.defaultProvider;
+        
+        const { client: s3, bucket } = this.getS3Client(provider);
+        
+        if (!bucket) {
+            return {
+                success: false,
+                error: `Backup-Bucket nicht konfiguriert für Provider: ${provider}`
+            };
+        }
 
         try {
             // Get site information
@@ -56,8 +73,6 @@ class BackupService {
 
             const site = siteResult.rows[0];
             const backupId = this.generateBackupId();
-            const backupFileName = `${site.domain}_${backupType}_${backupId}.zip`;
-            const localPath = path.join('/tmp', backupFileName);
 
             // Create backup record
             const backupRecord = await query(
@@ -69,47 +84,39 @@ class BackupService {
 
             const backupId_db = backupRecord.rows[0].id;
 
-            try {
-                // Create backup archive
-                await this.createBackupArchive(site, backupType, localPath);
+            // Trigger backup on WordPress site via plugin API
+            const backupResult = await this.triggerRemoteBackup(site, backupType, backupId, provider, bucket);
 
-                // Upload to S3
-                const s3Url = await this.uploadToS3(s3, bucket, localPath, backupFileName);
-
-                // Update backup record
-                const fileStats = fs.statSync(localPath);
+            if (backupResult.success) {
+                // Update backup record with result from plugin
                 await query(
                     `UPDATE backups
                      SET status = $1, file_size = $2, s3_url = $3, completed_at = CURRENT_TIMESTAMP
                      WHERE id = $4`,
-                    ['completed', fileStats.size, s3Url, backupId_db]
+                    ['completed', backupResult.fileSize, backupResult.s3Url, backupId_db]
                 );
-
-                // Clean up local file
-                fs.unlinkSync(localPath);
 
                 return {
                     success: true,
                     backupId: backupId_db,
-                    s3Url: s3Url,
-                    fileSize: fileStats.size
+                    s3Url: backupResult.s3Url,
+                    fileSize: backupResult.fileSize
                 };
-
-            } catch (error) {
-                // Update backup record with error
+            } else {
+                // Plugin konnte nicht erreicht werden - markiere als "wartend auf Plugin"
                 await query(
                     `UPDATE backups
                      SET status = $1, error_message = $2
                      WHERE id = $3`,
-                    ['failed', error.message, backupId_db]
+                    ['waiting_for_plugin', 'Warte auf WordPress-Plugin. Bitte stelle sicher, dass das Plugin aktiv ist.', backupId_db]
                 );
 
-                // Clean up local file if it exists
-                if (fs.existsSync(localPath)) {
-                    fs.unlinkSync(localPath);
-                }
-
-                throw error;
+                return {
+                    success: true,
+                    backupId: backupId_db,
+                    status: 'waiting_for_plugin',
+                    message: 'Backup-Anfrage erstellt. Das WordPress-Plugin wird das Backup durchführen.'
+                };
             }
 
         } catch (error) {
@@ -118,6 +125,51 @@ class BackupService {
                 success: false,
                 error: error.message
             };
+        }
+    }
+
+    /**
+     * Triggert Backup auf der WordPress-Site über das Plugin
+     */
+    async triggerRemoteBackup(site, backupType, backupId, provider, bucket) {
+        try {
+            // Versuche das WordPress-Plugin zu erreichen
+            const pluginUrl = `${site.site_url}/wp-json/wpma/v1/backup/create`;
+            
+            const response = await fetch(pluginUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WPMA-API-Key': site.api_key
+                },
+                body: JSON.stringify({
+                    backup_type: backupType,
+                    backup_id: backupId,
+                    provider: provider,
+                    bucket: bucket,
+                    upload_credentials: {
+                        endpoint: process.env.IDRIVE_E2_ENDPOINT,
+                        access_key: process.env.IDRIVE_E2_ACCESS_KEY,
+                        secret_key: process.env.IDRIVE_E2_SECRET_KEY,
+                        region: process.env.IDRIVE_E2_REGION
+                    }
+                }),
+                timeout: 10000
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    success: true,
+                    fileSize: data.file_size || 0,
+                    s3Url: data.s3_url || null
+                };
+            }
+
+            return { success: false, error: 'Plugin nicht erreichbar' };
+        } catch (error) {
+            console.log('Remote backup trigger failed (Plugin may not be installed):', error.message);
+            return { success: false, error: error.message };
         }
     }
 
@@ -280,33 +332,8 @@ class BackupService {
     }
 
     async downloadFromS3(backup) {
-        let s3Config;
-        let bucket;
-        const provider = backup.provider || 'aws';
-
-        switch (provider) {
-            case 'idrive_e2':
-                s3Config = {
-                    endpoint: `https://e2.idrive.com`,
-                    accessKeyId: process.env.IDRIVE_E2_ACCESS_KEY_ID,
-                    secretAccessKey: process.env.IDRIVE_E2_SECRET_ACCESS_KEY,
-                    s3ForcePathStyle: true,
-                    signatureVersion: 'v4'
-                };
-                bucket = process.env.IDRIVE_E2_BACKUP_BUCKET;
-                break;
-            case 'aws':
-            default:
-                s3Config = {
-                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                    region: process.env.AWS_REGION
-                };
-                bucket = process.env.AWS_BACKUP_BUCKET;
-                break;
-        }
-
-        const s3 = new AWS.S3(s3Config);
+        const provider = backup.provider || this.defaultProvider;
+        const { client: s3, bucket } = this.getS3Client(provider);
         const fileName = path.basename(backup.s3_url);
         const localPath = `/tmp/${fileName}`;
 
@@ -345,9 +372,24 @@ class BackupService {
                 [siteId]
             );
 
+            // Konvertiere zu camelCase für Frontend
+            const data = result.rows.map(row => ({
+                id: row.id,
+                siteId: row.site_id,
+                backupType: row.backup_type,
+                status: row.status,
+                fileSize: parseInt(row.file_size) || 0,
+                s3Url: row.s3_url,
+                errorMessage: row.error_message,
+                provider: row.provider,
+                createdAt: row.created_at,
+                completedAt: row.completed_at
+            }));
+
             return {
                 success: true,
-                backups: result.rows
+                data: data,
+                backups: data  // Legacy-Kompatibilität
             };
         } catch (error) {
             console.error('Error getting backups:', error);
@@ -374,33 +416,8 @@ class BackupService {
 
             // Delete from S3 if exists
             if (backup.s3_url) {
-                let s3Config;
-                let bucket;
-                const provider = backup.provider || 'aws';
-
-                switch (provider) {
-                    case 'idrive_e2':
-                        s3Config = {
-                            endpoint: `https://e2.idrive.com`,
-                            accessKeyId: process.env.IDRIVE_E2_ACCESS_KEY_ID,
-                            secretAccessKey: process.env.IDRIVE_E2_SECRET_ACCESS_KEY,
-                            s3ForcePathStyle: true,
-                            signatureVersion: 'v4'
-                        };
-                        bucket = process.env.IDRIVE_E2_BACKUP_BUCKET;
-                        break;
-                    case 'aws':
-                    default:
-                        s3Config = {
-                            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                            region: process.env.AWS_REGION
-                        };
-                        bucket = process.env.AWS_BACKUP_BUCKET;
-                        break;
-                }
-
-                const s3 = new AWS.S3(s3Config);
+                const provider = backup.provider || this.defaultProvider;
+                const { client: s3, bucket } = this.getS3Client(provider);
                 const fileName = path.basename(backup.s3_url);
                 await this.deleteFromS3(s3, bucket, fileName);
             }

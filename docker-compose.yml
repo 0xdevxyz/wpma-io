@@ -1,3 +1,10 @@
+# ============================================
+# WPMA.io Docker Compose
+# ============================================
+# WICHTIG: Erstelle eine .env Datei mit den Secrets!
+# Siehe: env.secure.template
+# ============================================
+
 services:
   wpma-postgres:
     image: postgres:16-alpine
@@ -5,16 +12,16 @@ services:
     ports:
       - "127.0.0.1:5434:5432"
     environment:
-      POSTGRES_DB: "wpma_db"
-      POSTGRES_USER: "wpma_user"
-      POSTGRES_PASSWORD: "uvdSDE4g69tRg146zFE/082HnAz5ICVl5KKcVkNE3bU="
+      POSTGRES_DB: ${POSTGRES_DB:-wpma_db}
+      POSTGRES_USER: ${POSTGRES_USER:-wpma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - wpma-postgres-data:/var/lib/postgresql/data
     networks:
       - wpma-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wpma_user -d wpma_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wpma_user} -d ${POSTGRES_DB:-wpma_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,14 +31,14 @@ services:
     container_name: wpma-redis
     ports:
       - "127.0.0.1:6381:6379"
-    command: redis-server --requirepass "04/jdoPGip+v2Yqoeo0+nNSIvxZsC/u+Q+E4qBrGA0E="
+    command: redis-server --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
     volumes:
       - wpma-redis-data:/data
     networks:
       - wpma-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,17 +51,31 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      NODE_ENV: "production"
-      PORT: "8000"
-      DATABASE_URL: "postgresql://wpma_user:uvdSDE4g69tRg146zFE%2F082HnAz5ICVl5KKcVkNE3bU%3D@wpma-postgres:5432/wpma_db"
-      REDIS_HOST: "wpma-redis"
-      REDIS_PORT: "6379"
-      REDIS_PASSWORD: "04/jdoPGip+v2Yqoeo0+nNSIvxZsC/u+Q+E4qBrGA0E="
-      REDIS_DB: "3"
-      JWT_SECRET: "1BIzpdRA6fF3jzfR4w5T4Pt3h5hzTpeeyFBM2Qf17G69v+gx+w1oe2NvkkRE2CrIYol7WTlxhxu/ivlWSXTqTA=="
-      VIRTUAL_HOST: "api.wpma.io"
-      LETSENCRYPT_HOST: "api.wpma.io"
-      VIRTUAL_PORT: "8000"
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-8000}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-20}
+      REDIS_HOST: ${REDIS_HOST:-wpma-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_DB: ${REDIS_DB:-3}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      FRONTEND_URL: ${FRONTEND_URL:-https://app.wpma.io}
+      # Optional Services
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      # Reverse Proxy
+      VIRTUAL_HOST: ${VIRTUAL_HOST:-api.wpma.io}
+      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST:-api.wpma.io}
+      VIRTUAL_PORT: ${VIRTUAL_PORT:-8000}
     networks:
       - proxy-network
       - wpma-network

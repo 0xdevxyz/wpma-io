@@ -49,13 +49,36 @@ class PerformanceService {
                 return { success: false, error: 'Keine Performance-Daten verfügbar' };
             }
 
-            const metrics = result.rows[0];
-            const performanceScore = this.calculatePerformanceScore(metrics);
+            const row = result.rows[0];
+            const performanceScore = this.calculatePerformanceScore(row);
+            const cwv = typeof row.core_web_vitals === 'string' 
+                ? JSON.parse(row.core_web_vitals) 
+                : (row.core_web_vitals || {});
 
-            return {
-                success: true,
-                data: { ...metrics, performance_score: performanceScore }
+            // Konvertiere zu camelCase für Frontend
+            const memoryBytes = parseInt(row.memory_usage) || 0;
+            const dbBytes = parseInt(row.db_size || row.database_size) || 0;
+            
+            const data = {
+                id: row.id,
+                siteId: row.site_id,
+                pageLoadTime: Math.round(parseFloat(row.page_load_time) || 0),
+                memoryUsage: memoryBytes,  // In Bytes für Frontend-Konvertierung
+                memoryUsageMB: Math.round(memoryBytes / 1024 / 1024),  // Bereits in MB
+                dbSize: dbBytes,
+                databaseQueries: row.database_queries || 0,
+                databaseSize: Math.round(dbBytes / 1024 / 1024),  // In MB für direkte Anzeige
+                cacheHitRatio: parseFloat(row.cache_hit_ratio) || 0,
+                ttfb: parseFloat(row.ttfb) || cwv.ttfb || 0,
+                lcp: parseFloat(row.lcp) || cwv.lcp || 0,
+                fid: parseFloat(row.fid) || cwv.fid || 0,
+                cls: parseFloat(row.cls) || cwv.cls || 0,
+                coreWebVitals: cwv,
+                performanceScore: performanceScore,
+                createdAt: row.created_at
             };
+
+            return { success: true, data };
         } catch (error) {
             console.error('Error getting current metrics:', error);
             return { success: false, error: error.message };
@@ -64,6 +87,8 @@ class PerformanceService {
 
     async getMetricsHistory(siteId, days = 7) {
         try {
+            // Sichere parametrisierte Query - verhindert SQL-Injection
+            const safeDays = Math.max(1, Math.min(365, parseInt(days, 10) || 7));
             const result = await query(
                 `SELECT 
                     id, site_id, page_load_time, core_web_vitals,
@@ -71,9 +96,9 @@ class PerformanceService {
                     created_at, DATE_TRUNC('hour', created_at) as hour
                 FROM performance_metrics 
                 WHERE site_id = $1 
-                AND created_at >= NOW() - INTERVAL '${days} days'
+                AND created_at >= NOW() - MAKE_INTERVAL(days => $2)
                 ORDER BY created_at ASC`,
-                [siteId]
+                [siteId, safeDays]
             );
 
             const groupedData = this.groupMetricsByHour(result.rows);
@@ -222,9 +247,11 @@ class PerformanceService {
 
     async cleanupOldMetrics() {
         try {
+            // Sichere parametrisierte Query - verhindert SQL-Injection
             const result = await query(
                 `DELETE FROM performance_metrics 
-                WHERE created_at < NOW() - INTERVAL '${this.metricsRetentionDays} days'`
+                WHERE created_at < NOW() - MAKE_INTERVAL(days => $1)`,
+                [this.metricsRetentionDays]
             );
             console.log(`Cleaned up ${result.rowCount} old performance metrics`);
             return { success: true, deleted: result.rowCount };
@@ -236,6 +263,8 @@ class PerformanceService {
 
     async getStatistics(siteId, days = 30) {
         try {
+            // Sichere parametrisierte Query - verhindert SQL-Injection
+            const safeDays = Math.max(1, Math.min(365, parseInt(days, 10) || 30));
             const result = await query(
                 `SELECT 
                     COUNT(*) as total_checks,
@@ -246,8 +275,8 @@ class PerformanceService {
                     AVG(cache_hit_ratio) as avg_cache_ratio
                 FROM performance_metrics 
                 WHERE site_id = $1 
-                AND created_at >= NOW() - INTERVAL '${days} days'`,
-                [siteId]
+                AND created_at >= NOW() - MAKE_INTERVAL(days => $2)`,
+                [siteId, safeDays]
             );
 
             return { success: true, data: result.rows[0] };
