@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      <div className="flex-1 flex items-center justify-center bg-white p-8">
+      <div className="flex-[3] flex items-center justify-center bg-white p-8">
         <div className="w-full max-w-md">
           <div className="mb-8">
             <div className="w-12 h-12 bg-gradient-to-br from-pink-600 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-4">
@@ -116,13 +116,14 @@ export default function LoginPage() {
         </div>
       </div>
       
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-12 items-center justify-center relative overflow-hidden">
+      <div className="hidden lg:flex flex-1 bg-gray-100 p-[5px]">
+        <div className="w-full bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 rounded-lg flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500 rounded-full blur-3xl" />
         </div>
         
-        <div className="relative z-10 max-w-xl text-white">
+        <div className="relative z-10 max-w-xl text-white p-12">
           <h2 className="text-4xl font-bold mb-6">
             Webhosting: Schnell, einfach und günstig
           </h2>
@@ -176,6 +177,7 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
