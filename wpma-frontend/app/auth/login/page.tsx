@@ -117,10 +117,10 @@ export default function LoginPage() {
       </div>
       
       <div className="hidden lg:flex flex-1 bg-gray-100 p-[5px]">
-        <div className="w-full bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 rounded-lg flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500 rounded-full blur-3xl" />
+        <div className="w-full bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#16213e] rounded-lg flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-600/30 rounded-full blur-3xl" />
         </div>
         
         <div className="relative z-10 max-w-xl text-white p-12">
@@ -133,7 +133,7 @@ export default function LoginPage() {
           
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center mt-1">
+              <div className="flex-shrink-0 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center mt-1">
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -142,7 +142,7 @@ export default function LoginPage() {
             </div>
             
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center mt-1">
+              <div className="flex-shrink-0 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center mt-1">
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -151,7 +151,7 @@ export default function LoginPage() {
             </div>
             
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center mt-1">
+              <div className="flex-shrink-0 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center mt-1">
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -160,14 +160,14 @@ export default function LoginPage() {
             </div>
           </div>
           
-          <div className="mt-12 bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+          <div className="mt-12 bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-purple-200">Ultraschnelles WPMA-Hosting</span>
-              <span className="text-sm text-purple-200">Geschützt durch SSL</span>
+              <span className="text-sm text-purple-300">Ultraschnelles WPMA-Hosting</span>
+              <span className="text-sm text-purple-300">Geschützt durch SSL</span>
             </div>
-            <div className="bg-white/20 rounded-lg h-48 flex items-center justify-center">
+            <div className="bg-white/5 rounded-lg h-48 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-500 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-2xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-2xl">
                   <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
