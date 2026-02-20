@@ -102,7 +102,7 @@ app.use(helmet({
 
 // CORS-Konfiguration mit dynamischer Origin-Prüfung
 const corsOptions = {
-    origin: function (origin, callback) {
+    origin: async function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) {
             return callback(null, true);
@@ -120,7 +120,25 @@ const corsOptions = {
             return callback(null, true);
         }
 
-        // WordPress-Plugin-Requests: nur bekannte Patterns erlauben
+        // White-Label-Domains dynamisch aus DB prüfen
+        try {
+            const { query } = require('./config/database');
+            const { client: redis } = require('./config/redis');
+            const cacheKey = `cors:whitelist`;
+            let whitelist = null;
+            try {
+                const cached = await redis.get(cacheKey);
+                if (cached) whitelist = JSON.parse(cached);
+            } catch(e) {}
+            if (!whitelist) {
+                const result = await query(
+                    "SELECT custom_domain FROM white_label_configs WHERE active = TRUE AND custom_domain IS NOT NULL"
+                );
+                whitelist = result.rows.map(r => r.custom_domain);
+                try { await redis.set(cacheKey, JSON.stringify(whitelist), { EX: 300 }); } catch(e) {}
+            }
+            if (whitelist.some(d => origin.includes(d))) return callback(null, true);
+        } catch(e) {}
         return callback(new Error('CORS not allowed'), false);
     },
     credentials: true,
