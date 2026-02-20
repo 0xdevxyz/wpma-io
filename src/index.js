@@ -48,6 +48,7 @@ const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');
 const stagingRoutes = require('./routes/staging');
 const incrementalBackupRoutes = require('./routes/incrementalBackup');
+const paymentRoutes = require('./routes/payment');
 
 // Import Middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -111,9 +112,8 @@ const corsOptions = {
             return callback(null, true);
         }
 
-        // Allow all other domains (für WordPress-Plugin-Requests)
-        // Diese können von beliebigen WordPress-Installationen kommen
-        return callback(null, true);
+        // WordPress-Plugin-Requests: nur bekannte Patterns erlauben
+        return callback(new Error('CORS not allowed'), false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -124,6 +124,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(limiter);
+
+// Raw body für Stripe Webhook — muss VOR express.json() stehen
+app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -159,6 +163,7 @@ app.use('/api/v1/notifications', notificationsRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/staging', stagingRoutes);
 app.use('/api/v1/incremental-backup', incrementalBackupRoutes);
+app.use('/api/v1/payment', paymentRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

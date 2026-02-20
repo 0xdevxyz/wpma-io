@@ -89,20 +89,17 @@ class PaymentService {
 
             const subscriptionId = userResult.rows[0].stripe_subscription_id;
 
-            // Cancel subscription in Stripe
+            // Cancel subscription in Stripe — läuft bis Periodenende
             await this.stripe.subscriptions.update(subscriptionId, {
                 cancel_at_period_end: true
             });
 
-            // Update user plan to basic
-            await query(
-                'UPDATE users SET plan_type = $1 WHERE id = $2',
-                ['basic', userId]
-            );
+            // KEIN sofortiger DB-Downgrade — User behält Plan bis Periodenende
+            // Downgrade passiert via Stripe Webhook: customer.subscription.deleted
 
             return {
                 success: true,
-                message: 'Subscription cancelled successfully'
+                message: 'Subscription will be cancelled at period end. Access continues until then.'
             };
 
         } catch (error) {
