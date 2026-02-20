@@ -257,8 +257,8 @@ class AuthController {
             await redisClient.set(`pwreset:${tokenHash}`, userId.toString(), { EX: 60 * 60 });
 
             // TODO: E-Mail senden wenn SMTP konfiguriert
-            // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-            // await emailService.sendPasswordReset(email, resetUrl);
+            const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+            const emailService = require("../services/emailService"); await emailService.sendPasswordReset(email, resetUrl);
 
             logger.info('Password reset token generated', { userId, email });
 
