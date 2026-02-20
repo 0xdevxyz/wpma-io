@@ -18,8 +18,13 @@ router.post('/login',
     authController.login
 );
 
+// Password Reset (public)
+router.post('/forgot-password', sanitize, authController.forgotPassword);
+router.post('/reset-password', sanitize, authController.resetPassword);
+
 // Protected routes
 router.get('/me', authenticateToken, authController.me);
 router.post('/refresh', authenticateToken, authController.refreshToken);
+router.post('/logout', authenticateToken, authController.logout);
 
 module.exports = router; 

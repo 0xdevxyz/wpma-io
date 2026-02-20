@@ -76,9 +76,17 @@ const PORT = process.env.PORT || 8000;
 
 // Rate Limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: 'Too many login attempts, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -146,6 +154,8 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/auth/register', authLimiter);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/sites', sitesRoutes);
 app.use('/api/v1/security', securityRoutes);
