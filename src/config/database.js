@@ -66,6 +66,26 @@ const initializeDatabase = async () => {
         `);
         
         console.log('✅ Database migrations completed successfully');
+
+        // Migration 002: Fehlende Tabellen
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const migrationFile = path.join(__dirname, '../migrations/002_missing_tables.sql');
+            if (fs.existsSync(migrationFile)) {
+                const sql = fs.readFileSync(migrationFile, 'utf8');
+                const statements = sql
+                    .split(';')
+                    .map(s => s.trim())
+                    .filter(s => s.length > 0 && !s.startsWith('--'));
+                for (const stmt of statements) {
+                    await pool.query(stmt);
+                }
+                console.log('✅ Migration 002 (missing tables) completed');
+            }
+        } catch (m002Error) {
+            console.error('Migration 002 warning:', m002Error.message);
+        }
         
         // Cleanup: Fix existing deleted sites to avoid unique constraint issues
         try {

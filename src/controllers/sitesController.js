@@ -476,12 +476,17 @@ class SitesController {
                 });
             }
             
-            // Plugin ZIP path
-            const pluginPath = path.join(__dirname, '../../wpma-agent-plugin.zip');
-            
+            // Plugin ZIP path — dynamisch, nimmt neueste Version
+            const rootDir = path.join(__dirname, '../..');
+            const pluginFiles = fs.readdirSync(rootDir)
+                .filter(f => /^wpma-agent.*\.zip$/.test(f))
+                .sort()
+                .reverse();
+            const pluginPath = pluginFiles.length > 0 ? path.join(rootDir, pluginFiles[0]) : null;
+
             // Check if plugin file exists
-            if (!fs.existsSync(pluginPath)) {
-                console.error('Plugin file not found:', pluginPath);
+            if (!pluginPath || !fs.existsSync(pluginPath)) {
+                console.error('Plugin file not found in:', rootDir);
                 return res.status(500).json({
                     success: false,
                     error: 'Plugin file not available'
