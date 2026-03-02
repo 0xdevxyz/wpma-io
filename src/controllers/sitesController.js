@@ -311,27 +311,41 @@ class SitesController {
     
     async exchangeSetupToken(req, res) {
         try {
-            const { token } = req.body;
+            const { token, domain } = req.body;
             const clientIp = req.ip || req.connection.remoteAddress;
-            
+
             if (!token) {
                 throw new ValidationError('Setup token is required');
             }
-            
+
             // Find site by token
             const result = await query(
-                `SELECT id, user_id, domain, site_name, api_key, setup_token_expires_at, setup_token_used 
-                 FROM sites 
+                `SELECT id, user_id, domain, site_name, api_key, setup_token_expires_at, setup_token_used
+                 FROM sites
                  WHERE setup_token = $1 AND status = $2`,
                 [token, 'active']
             );
-            
+
             if (result.rows.length === 0) {
-                console.log(`Token exchange failed: Token not found - IP: ${clientIp}`);
+                logger.warn(`Token exchange failed: Token not found - IP: ${clientIp}`);
                 return res.status(404).json({
                     success: false,
                     error: 'Invalid setup token'
                 });
+            }
+
+            // Ownership check: verify the requesting domain matches the registered site domain
+            if (domain) {
+                const normalise = d => d.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+                const requestedDomain = normalise(domain);
+                const registeredDomain = normalise(result.rows[0].domain);
+                if (requestedDomain !== registeredDomain) {
+                    logger.warn(`Token exchange failed: Domain mismatch (got ${requestedDomain}, expected ${registeredDomain}) - IP: ${clientIp}`);
+                    return res.status(403).json({
+                        success: false,
+                        error: 'Domain mismatch: token does not belong to this site'
+                    });
+                }
             }
             
             const site = result.rows[0];

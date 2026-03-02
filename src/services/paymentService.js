@@ -161,6 +161,9 @@ class PaymentService {
     async handleWebhook(event) {
         try {
             switch (event.type) {
+                case 'checkout.session.completed':
+                    await this.handleCheckoutCompleted(event.data.object);
+                    break;
                 case 'invoice.payment_succeeded':
                     await this.handlePaymentSucceeded(event.data.object);
                     break;
@@ -238,6 +241,27 @@ class PaymentService {
                 `INSERT INTO payment_logs (user_id, amount, currency, status, stripe_invoice_id)
                  VALUES ($1, $2, $3, $4, $5)`,
                 [user.id, invoice.amount_due, invoice.currency, 'failed', invoice.id]
+            );
+        }
+    }
+
+    async handleCheckoutCompleted(session) {
+        const customerId = session.customer;
+        const subscriptionId = session.subscription;
+        const planType = session.metadata && session.metadata.plan_type;
+
+        if (!customerId || !subscriptionId) return;
+
+        const userResult = await query(
+            'SELECT * FROM users WHERE stripe_customer_id = $1',
+            [customerId]
+        );
+
+        if (userResult.rows.length > 0) {
+            const user = userResult.rows[0];
+            await query(
+                'UPDATE users SET plan_type = $1, stripe_subscription_id = $2, payment_status = $3 WHERE id = $4',
+                [planType || 'pro', subscriptionId, 'active', user.id]
             );
         }
     }
@@ -451,7 +475,11 @@ class PaymentService {
             enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID
         };
 
-        return prices[planType];
+        const priceId = prices[planType];
+        if (!priceId) {
+            throw new Error(`No Stripe price ID configured for plan: ${planType}. Set STRIPE_${planType.toUpperCase()}_PRICE_ID env var.`);
+        }
+        return priceId;
     }
 
     async createUsageRecord(subscriptionItemId, quantity, timestamp = Math.floor(Date.now() / 1000)) {

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authenticateWordPressAPI, wpApiRateLimiter } = require('../middleware/auth');
 const securityController = require('../controllers/securityController');
 
-// Public endpoint for WordPress Plugin
-router.post('/:siteId/scan', securityController.startScan);
+// WordPress Plugin endpoint — rate-limited + requires valid API key
+router.post('/:siteId/scan', wpApiRateLimiter, authenticateWordPressAPI, securityController.startScan);
 
-// Authenticated routes
+// Dashboard authenticated routes
 router.use(authenticateToken);
 
 router.get('/:siteId/status', securityController.getStatus);

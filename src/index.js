@@ -103,9 +103,14 @@ app.use(helmet({
 // CORS-Konfiguration mit dynamischer Origin-Prüfung
 const corsOptions = {
     origin: async function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
+        // Block no-origin requests in production (prevents CSRF from non-browser clients
+        // abusing credentials). WordPress plugin uses API key auth on dedicated routes,
+        // so it does not need CORS at all.
         if (!origin) {
-            return callback(null, true);
+            if (process.env.NODE_ENV !== 'production') {
+                return callback(null, true);
+            }
+            return callback(new Error('CORS: Origin header required'), false);
         }
 
         // Frontend domains (strenge Prüfung)

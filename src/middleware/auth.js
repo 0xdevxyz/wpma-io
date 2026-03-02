@@ -1,7 +1,17 @@
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { query } = require('../config/database');
 const { client: redisClient } = require('../config/redis');
 const { logger } = require('../utils/logger');
+
+// Rate limiter for WordPress plugin API key auth — prevents brute-force
+const wpApiRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 30, // 30 attempts per IP per window
+    message: { success: false, error: 'Too many authentication attempts, please try again later' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 const authenticateToken = async (req, res, next) => {
     try {
@@ -92,5 +102,6 @@ const authenticateWordPressAPI = async (req, res, next) => {
 
 module.exports = {
     authenticateToken,
-    authenticateWordPressAPI
+    authenticateWordPressAPI,
+    wpApiRateLimiter
 };

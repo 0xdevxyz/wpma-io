@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   Globe, Shield, AlertTriangle, CheckCircle, Plus, Search,
-  Activity, Package, FileText, ChevronDown, LayoutList, LayoutGrid,
+  Activity, Package, FileText, ChevronDown, LayoutList, LayoutGrid, CreditCard,
   TrendingUp, RefreshCw, RotateCw, Brain, Zap, Lock, BarChart2,
 } from 'lucide-react';
 import { sitesApi, backupApi, syncApi, bulkApi } from '../../lib/api';
@@ -377,7 +377,7 @@ export default function DashboardPage() {
             { label: 'Bulk Operations', sub: 'Alle Sites', color: '#3b82f6', icon: <Activity className="w-4 h-4" />, onClick: () => router.push('/bulk-operations') },
             { label: 'Plugins', sub: 'Verwalten', color: '#8b5cf6', icon: <Package className="w-4 h-4" />, onClick: () => sites[0] && router.push(`/sites/${sites[0].id}/plugins`) },
             { label: 'Reports', sub: 'Erstellen', color: '#10b981', icon: <FileText className="w-4 h-4" />, onClick: () => sites[0] && router.push(`/sites/${sites[0].id}/reports`) },
-            { label: 'Security', sub: 'Prüfen', color: '#f59e0b', icon: <Shield className="w-4 h-4" />, onClick: () => toast('Coming Soon', { icon: 'ℹ️' }) },
+            { label: 'Abrechnung', sub: 'Plan & Zahlung', color: '#f59e0b', icon: <CreditCard className="w-4 h-4" />, onClick: () => router.push('/billing') },
           ].map(a => (
             <button
               key={a.label}

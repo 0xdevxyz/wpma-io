@@ -347,4 +347,18 @@ export const syncApi = {
     api.get(`/api/v1/sync/sites/${siteId}/synced-data`),
 };
 
+export const paymentApi = {
+  getStatus: () =>
+    api.get('/api/v1/payment/status'),
+
+  subscribe: (planType: string) =>
+    api.post('/api/v1/payment/subscribe', { planType }),
+
+  cancel: () =>
+    api.post('/api/v1/payment/cancel'),
+
+  update: (planType: string) =>
+    api.put('/api/v1/payment/update', { planType }),
+};
+
 export default api;
