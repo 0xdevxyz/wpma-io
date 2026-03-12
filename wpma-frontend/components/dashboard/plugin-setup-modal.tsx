@@ -30,7 +30,7 @@ export const PluginSetupModal: React.FC<PluginSetupModalProps> = ({ isOpen, onCl
     router.push(`/sites/${siteData.id}`);
   };
 
-  const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/sites/plugin/download/${siteData.setupToken}`;
+  const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.wpma.io'}/api/v1/sites/plugin/download/${siteData.setupToken}`;
 
   const handleDownload = () => {
     window.open(downloadUrl, '_blank');

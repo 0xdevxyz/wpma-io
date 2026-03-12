@@ -11,10 +11,6 @@ $site_name = get_option('wpma_site_name', get_bloginfo('name'));
 ?>
 <div class="wrap">
     <h1 style="display:none;">WPMA.io</h1>
-    <?php 
-    // Zeige alle Admin Notices an dieser Stelle
-    do_action('admin_notices');
-    ?>
 </div>
 <?php
 

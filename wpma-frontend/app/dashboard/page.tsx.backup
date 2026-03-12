@@ -1,0 +1,597 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Globe, Shield, Zap, AlertTriangle, CheckCircle, Clock, Plus, Search, 
+  RefreshCw, TrendingUp, Activity, Brain, Sparkles, ArrowRight, 
+  PlayCircle, X, ChevronRight
+} from 'lucide-react';
+import { sitesApi, selfHealingApi } from '../../lib/api';
+import { useAuthStore } from '../../lib/auth-store';
+import { SiteCard } from '../../components/dashboard/site-card';
+import { StatsCard } from '../../components/dashboard/stats-card';
+import { CreateSiteModal } from '../../components/dashboard/create-site-modal';
+import { PluginSetupModal } from '../../components/dashboard/plugin-setup-modal';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { toast } from 'react-hot-toast';
+
+interface Site {
+  id: number;
+  domain: string;
+  siteUrl: string;
+  siteName: string;
+  healthScore: number;
+  status: string;
+  lastCheck: string;
+  wordpressVersion: string;
+  phpVersion: string;
+  createdAt: string;
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sites, setSites] = useState<Site[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isPluginSetupModalOpen, setIsPluginSetupModalOpen] = useState(false);
+  const [newSiteData, setNewSiteData] = useState<any>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+
+  const { data: sitesData, isLoading, error, refetch } = useQuery({
+    queryKey: ['sites'],
+    queryFn: async () => {
+      const response = await sitesApi.getSites();
+      if (response.success) {
+        return response.data || [];
+      }
+      throw new Error(response.error || 'Fehler beim Laden der Sites');
+    },
+    refetchInterval: 30000,
+  });
+
+  useEffect(() => {
+    if (sitesData) {
+      setSites(sitesData);
+    }
+  }, [sitesData]);
+
+  useEffect(() => {
+    if (sites.length === 0 && !localStorage.getItem('onboarding_completed')) {
+      setShowOnboarding(true);
+    }
+  }, [sites]);
+
+  useEffect(() => {
+    if (sites.length > 0) {
+      generateAIInsights();
+    }
+  }, [sites]);
+
+  const generateAIInsights = () => {
+    const critical = sites.filter(s => s.healthScore < 70);
+    const warning = sites.filter(s => s.healthScore >= 70 && s.healthScore < 90);
+    const healthy = sites.filter(s => s.healthScore >= 90);
+
+    const insights = [];
+
+    if (critical.length > 0) {
+      insights.push({
+        id: 'critical',
+        priority: 'high',
+        icon: AlertTriangle,
+        color: 'from-red-500 to-red-600',
+        title: `🚨 ${critical.length} ${critical.length === 1 ? 'Site benötigt' : 'Sites benötigen'} sofortige Aufmerksamkeit`,
+        description: 'KI hat kritische Probleme erkannt, die automatisch behoben werden können.',
+        action: 'Auto-Fix starten',
+        actionIcon: Sparkles,
+        sites: critical,
+        estimate: `~${critical.length * 2} Min`,
+        onClick: () => handleAutoFix(critical)
+      });
+    }
+
+    if (warning.length > 0) {
+      insights.push({
+        id: 'warning',
+        priority: 'medium',
+        icon: AlertTriangle,
+        color: 'from-yellow-500 to-orange-500',
+        title: `⚠️ ${warning.length} ${warning.length === 1 ? 'Site braucht' : 'Sites brauchen'} Wartung`,
+        description: 'Kleinere Probleme gefunden. KI kann diese automatisch optimieren.',
+        action: 'Jetzt optimieren',
+        actionIcon: Sparkles,
+        sites: warning,
+        estimate: `~${warning.length} Min`,
+        onClick: () => handleAutoFix(warning)
+      });
+    }
+
+    if (sites.length >= 1) {
+      insights.push({
+        id: 'updates',
+        priority: 'low',
+        icon: RefreshCw,
+        color: 'from-blue-500 to-blue-600',
+        title: `🔄 WordPress & Plugins aktuell halten`,
+        description: 'Halte deine Site sicher mit automatischen Updates und Rollback-Schutz.',
+        action: 'Updates prüfen',
+        actionIcon: PlayCircle,
+        sites: [],
+        estimate: '~2 Min',
+        onClick: () => router.push(sites.length === 1 ? `/sites/${sites[0].id}/updates` : '/bulk-operations')
+      });
+    }
+
+    if (healthy.length > 0 || warning.length > 0) {
+      const performanceSites = [...healthy, ...warning];
+      insights.push({
+        id: 'performance',
+        priority: 'low',
+        icon: Zap,
+        color: 'from-purple-500 to-indigo-600',
+        title: `⚡ Performance steigern`,
+        description: `${performanceSites.length} ${performanceSites.length === 1 ? 'Site kann' : 'Sites können'} schneller werden.`,
+        action: 'Optimieren',
+        actionIcon: TrendingUp,
+        sites: performanceSites,
+        estimate: `~${performanceSites.length} Min`,
+        onClick: () => router.push(sites.length === 1 ? `/sites/${sites[0].id}/performance` : '/bulk-operations?action=performance')
+      });
+    }
+
+    if (sites.length > 0) {
+      insights.push({
+        id: 'security',
+        priority: 'medium',
+        icon: Shield,
+        color: 'from-green-500 to-emerald-600',
+        title: `🛡️ Security-Check durchführen`,
+        description: 'Schütze deine Sites vor Malware und Sicherheitslücken.',
+        action: 'Scan starten',
+        actionIcon: Shield,
+        sites: [],
+        estimate: '~3 Min',
+        onClick: () => router.push(sites.length === 1 ? `/sites/${sites[0].id}/security` : '/bulk-operations?action=security')
+      });
+    }
+
+    if (sites.length > 0) {
+      insights.push({
+        id: 'staging',
+        priority: 'info',
+        icon: Clock,
+        color: 'from-indigo-500 to-purple-600',
+        title: `🧪 Test-Umgebung erstellen`,
+        description: 'Teste Updates sicher auf einer Staging-Kopie in nur 5 Minuten.',
+        action: 'Staging erstellen',
+        actionIcon: Zap,
+        sites: [],
+        estimate: '~5 Min',
+        onClick: () => router.push(sites.length === 1 ? `/sites/${sites[0].id}/staging` : '/bulk-operations?action=staging')
+      });
+    }
+
+    setAiInsights(insights);
+  };
+
+  const handleAutoFix = async (sitesToFix: Site[]) => {
+    const loadingToast = toast.loading(`KI analysiert ${sitesToFix.length} ${sitesToFix.length === 1 ? 'Site' : 'Sites'}...`);
+    
+    try {
+      const results = await Promise.allSettled(
+        sitesToFix.map(async (site) => {
+          // Simuliere Problem-Erkennung basierend auf Health Score
+          let problemType = 'unknown';
+          if (site.healthScore < 50) {
+            problemType = 'White Screen of Death';
+          } else if (site.healthScore < 70) {
+            problemType = 'Performance Issues';
+          }
+
+          const analysisResult = await selfHealingApi.autoHeal(
+            String(site.id),
+            {
+              error: problemType,
+              context: { healthScore: site.healthScore },
+            }
+          );
+
+          return {
+            site: site.domain,
+            success: analysisResult.success,
+            result: analysisResult.data
+          };
+        })
+      );
+
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      toast.dismiss(loadingToast);
+
+      if (successful > 0) {
+        toast.success(
+          `✨ ${successful} ${successful === 1 ? 'Site wurde' : 'Sites wurden'} automatisch repariert!`,
+          { duration: 5000 }
+        );
+      }
+
+      if (failed > 0) {
+        toast.error(
+          `⚠️ ${failed} ${failed === 1 ? 'Site konnte' : 'Sites konnten'} nicht repariert werden.`,
+          { duration: 5000 }
+        );
+      }
+
+      // Refresh sites data
+      setTimeout(() => refetch(), 2000);
+
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      toast.error(error?.message || 'Fehler beim Auto-Fix');
+      console.error('Auto-Fix error:', error);
+    }
+  };
+
+  const handleBulkPerformance = () => {
+    router.push('/bulk-operations?action=performance');
+  };
+
+  const filteredSites = sites.filter(site => {
+    const matchesSearch = site.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         site.siteName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'healthy' && site.healthScore >= 90) ||
+                         (statusFilter === 'warning' && site.healthScore >= 70 && site.healthScore < 90) ||
+                         (statusFilter === 'critical' && site.healthScore < 70);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const stats = React.useMemo(() => {
+    const totalSites = sites.length;
+    const avgHealthScore = sites.reduce((sum, site) => sum + site.healthScore, 0) / totalSites || 0;
+    const healthySites = sites.filter(site => site.healthScore >= 90).length;
+    const issuesCount = sites.filter(site => site.healthScore < 70).length;
+
+    return {
+      totalSites,
+      avgHealthScore: Math.round(avgHealthScore),
+      healthySites,
+      issuesCount,
+    };
+  }, [sites]);
+
+  const handleViewDetails = (siteId: number) => router.push(`/sites/${siteId}`);
+  const handleRunHealthCheck = async (siteId: number) => {
+    try {
+      toast.loading('Health Check wird durchgeführt...');
+      await sitesApi.runHealthCheck(siteId.toString());
+      toast.dismiss();
+      toast.success('Health Check gestartet');
+      setTimeout(() => refetch(), 2000);
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error?.message || 'Health Check fehlgeschlagen');
+    }
+  };
+
+  const handleDeleteSite = async (siteId: number) => {
+    if (!confirm('Möchten Sie diese Site wirklich löschen?')) return;
+    
+    try {
+      toast.loading('Site wird gelöscht...');
+      const response = await sitesApi.deleteSite(siteId.toString());
+      toast.dismiss();
+      
+      if (response.success) {
+        toast.success('Site erfolgreich gelöscht');
+        refetch();
+      } else {
+        toast.error(response.error || 'Fehler beim Löschen der Site');
+      }
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error?.message || 'Fehler beim Löschen der Site');
+    }
+  };
+
+  const handleRefresh = () => {
+    refetch();
+    toast.success('Dashboard aktualisiert');
+  };
+
+  const handleCreateSite = () => setIsCreateModalOpen(true);
+
+  const handleCreateSuccess = (siteData?: any) => {
+    if (siteData) {
+      setNewSiteData(siteData);
+      setIsPluginSetupModalOpen(true);
+    }
+    refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">KI analysiert Ihre Sites...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="max-w-md">
+          <CardContent className="text-center py-8">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
+            <p className="text-gray-600 mb-4">Die Sites konnten nicht geladen werden.</p>
+            <Button onClick={() => refetch()}>Erneut versuchen</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-gray-600 mt-1">
+                {sites.length > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-purple-600" />
+                    KI-gestützte Überwachung von {sites.length} {sites.length === 1 ? 'Site' : 'Sites'}
+                  </span>
+                ) : (
+                  'Willkommen zurück, ' + user?.firstName + '!'
+                )}
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <Button variant="secondary" onClick={handleRefresh}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Aktualisieren
+              </Button>
+              <Button onClick={handleCreateSite}>
+                <Plus className="w-4 h-4 mr-2" />
+                Site hinzufügen
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {showOnboarding && sites.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-8 bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl p-8 text-white shadow-2xl relative overflow-hidden"
+            >
+              <button
+                onClick={() => {
+                  setShowOnboarding(false);
+                  localStorage.setItem('onboarding_completed', 'true');
+                }}
+                className="absolute top-4 right-4 text-white/80 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <div className="relative z-10">
+                <h2 className="text-3xl font-bold mb-3">Willkommen bei WPMA! 🚀</h2>
+                <p className="text-pink-100 mb-6 text-lg">
+                  Ihre WordPress-Sites werden durch KI automatisch überwacht, gewartet und optimiert.
+                </p>
+                <div className="flex gap-4">
+                  <Button 
+                    onClick={handleCreateSite}
+                    className="bg-white text-pink-600 hover:bg-pink-50 font-semibold px-6"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Erste Site hinzufügen (2 Min)
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {aiInsights && aiInsights.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="w-5 h-5 text-purple-600" />
+              <h2 className="text-lg font-semibold text-gray-900">KI-Empfehlungen</h2>
+              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                Personalisiert für dich
+              </span>
+            </div>
+            <div className="grid gap-4">
+              {aiInsights.map((insight: any, index: number) => (
+                <motion.div
+                  key={insight.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="border-l-4 border-l-transparent hover:border-l-purple-500 transition-all cursor-pointer group hover:shadow-lg"
+                        onClick={insight.onClick}>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className={`p-3 rounded-xl bg-gradient-to-br ${insight.color} text-white shadow-lg`}>
+                            <insight.icon className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">
+                              {insight.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-2">{insight.description}</p>
+                            {insight.sites.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {insight.sites.slice(0, 3).map((site: Site) => (
+                                  <span key={site.id} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                    {site.domain}
+                                  </span>
+                                ))}
+                                {insight.sites.length > 3 && (
+                                  <span className="text-xs text-gray-500">
+                                    +{insight.sites.length - 3} weitere
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {insight.estimate && (
+                            <div className="text-right">
+                              <div className="text-xs text-gray-500">Geschätzte Zeit</div>
+                              <div className="text-sm font-semibold text-gray-900">{insight.estimate}</div>
+                            </div>
+                          )}
+                          <Button className="bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-md">
+                            <insight.actionIcon className="w-4 h-4 mr-2" />
+                            {insight.action}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sites.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatsCard title="Gesamte Sites" value={stats.totalSites} icon={Globe} color="blue" />
+            <StatsCard title="Durchschn. Health" value={`${stats.avgHealthScore}%`} icon={TrendingUp} color="green" />
+            <StatsCard title="Gesunde Sites" value={stats.healthySites} icon={CheckCircle} color="green" />
+            <StatsCard title="Benötigen Aufmerksamkeit" value={stats.issuesCount} icon={AlertTriangle} color="red" />
+          </div>
+        )}
+
+        {sites.length > 0 && (
+          <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <button
+                onClick={() => router.push('/bulk-operations')}
+                className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg hover:shadow-md transition-all group"
+              >
+                <Globe className="w-6 h-6 mb-2 text-blue-600 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Bulk Operations</p>
+                <p className="text-xs text-gray-500 mt-1">Alle Sites verwalten</p>
+              </button>
+              <button
+                onClick={() => router.push(`/sites/${sites[0].id}/staging`)}
+                className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg hover:shadow-md transition-all group"
+              >
+                <Zap className="w-6 h-6 mb-2 text-purple-600 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Staging erstellen</p>
+                <p className="text-xs text-gray-500 mt-1">In 5 Minuten</p>
+              </button>
+              <button
+                onClick={() => router.push(`/sites/${sites[0].id}/security`)}
+                className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg hover:shadow-md transition-all group"
+              >
+                <Shield className="w-6 h-6 mb-2 text-green-600 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Security Scan</p>
+                <p className="text-xs text-gray-500 mt-1">Alle Sites prüfen</p>
+              </button>
+              <button
+                onClick={() => router.push(`/sites/${sites[0].id}/performance`)}
+                className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg hover:shadow-md transition-all group"
+              >
+                <TrendingUp className="w-6 h-6 mb-2 text-orange-600 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Performance</p>
+                <p className="text-xs text-gray-500 mt-1">Optimieren</p>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {sites.length > 0 && (
+          <div className="mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Sites durchsuchen..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant={statusFilter === 'all' ? 'primary' : 'secondary'} size="sm" onClick={() => setStatusFilter('all')}>Alle</Button>
+                <Button variant={statusFilter === 'healthy' ? 'primary' : 'secondary'} size="sm" onClick={() => setStatusFilter('healthy')}>Gesund</Button>
+                <Button variant={statusFilter === 'warning' ? 'primary' : 'secondary'} size="sm" onClick={() => setStatusFilter('warning')}>Warnung</Button>
+                <Button variant={statusFilter === 'critical' ? 'primary' : 'secondary'} size="sm" onClick={() => setStatusFilter('critical')}>Kritisch</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {filteredSites.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSites.map((site) => (
+              <SiteCard
+                key={site.id}
+                site={site}
+                onViewDetails={handleViewDetails}
+                onRunHealthCheck={handleRunHealthCheck}
+                onDelete={handleDeleteSite}
+              />
+            ))}
+          </div>
+        ) : sites.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Brain className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Bereit für Ihre erste Site?</h3>
+              <p className="text-gray-600 mb-6">
+                Fügen Sie Ihre WordPress-Site hinzu und lassen Sie die KI die Arbeit übernehmen
+              </p>
+              <Button onClick={handleCreateSite}>
+                <Plus className="w-4 h-4 mr-2" />
+                Erste Site hinzufügen
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Globe className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Keine Sites gefunden</h3>
+              <p className="text-gray-600 mb-6">Versuchen Sie, Ihre Suchkriterien anzupassen</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <CreateSiteModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSuccess={handleCreateSuccess} />
+      <PluginSetupModal isOpen={isPluginSetupModalOpen} onClose={() => { setIsPluginSetupModalOpen(false); setNewSiteData(null); }} siteData={newSiteData} />
+    </div>
+  );
+}

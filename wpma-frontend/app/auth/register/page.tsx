@@ -28,7 +28,31 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterForm>();
 
-  const password = watch('password');
+  const password = watch('password') || '';
+
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd || pwd.length === 0) return null;
+    
+    const hasLower = /[a-z]/.test(pwd);
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasNumber = /\d/.test(pwd);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
+    const length = pwd.length;
+
+    let score = 0;
+    if (length >= 8) score++;
+    if (length >= 12) score++;
+    if (hasLower) score++;
+    if (hasUpper) score++;
+    if (hasNumber) score++;
+    if (hasSpecial) score++;
+
+    if (score <= 3) return { level: 'weak', label: 'Schwach', color: 'text-red-600', bgColor: 'bg-red-200', width: '33%' };
+    if (score <= 5) return { level: 'medium', label: 'Mittel', color: 'text-yellow-600', bgColor: 'bg-yellow-200', width: '66%' };
+    return { level: 'strong', label: 'Stark', color: 'text-green-600', bgColor: 'bg-green-200', width: '100%' };
+  };
+
+  const passwordStrength = getPasswordStrength(password);
 
   const onSubmit = async (data: RegisterForm) => {
     const success = await registerUser({
@@ -138,12 +162,18 @@ export default function RegisterPage() {
                       value: 8,
                       message: 'Passwort muss mindestens 8 Zeichen lang sein',
                     },
+                    validate: (value) => {
+                      if (!/[a-z]/.test(value)) return 'Passwort muss mindestens einen Kleinbuchstaben enthalten';
+                      if (!/[A-Z]/.test(value)) return 'Passwort muss mindestens einen Großbuchstaben enthalten';
+                      if (!/\d/.test(value)) return 'Passwort muss mindestens eine Ziffer enthalten';
+                      return true;
+                    },
                   })}
                   type={showPassword ? 'text' : 'password'}
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
                     errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Mindestens 8 Zeichen"
+                  placeholder="z.B. MeinPasswort123!"
                 />
                 <button
                   type="button"
@@ -153,9 +183,27 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              {passwordStrength && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-medium ${passwordStrength.color}`}>
+                      Passwortstärke: {passwordStrength.label}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all duration-300 ${passwordStrength.bgColor}`}
+                      style={{ width: passwordStrength.width }}
+                    />
+                  </div>
+                </div>
+              )}
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">
+                Verwenden Sie mindestens 8 Zeichen mit Klein- und Großbuchstaben, Ziffern und Sonderzeichen
+              </p>
             </div>
             
             <div>

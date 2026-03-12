@@ -3,41 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WPMA.io - Finde heraus, wie sicher deine WordPress-Site ist</title>
-    <meta name="description" content="Kostenloser Security-Check für deine WordPress-Site. Erfahre in 2 Minuten, ob deine Website wirklich sicher ist.">
+    <title>WPMA.io - WordPress-Sites die sich selbst reparieren</title>
+    <meta name="description" content="Verwandle Besucher wie magisch in selbst-reparierende WordPress-Sites. 95% weniger Notfälle. Jetzt 40% Launch-Rabatt!">
     <link rel="icon" href="/favicon.ico">
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-dark: #0f0f0f;
-            --bg-card: #1a1a1a;
-            --accent-cyan: #00f5d4;
-            --accent-coral: #ff6b6b;
-            --accent-gold: #ffd93d;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --border-subtle: rgba(255,255,255,0.08);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-card: #ffffff;
+            --accent: #0891b2;
+            --accent-hover: #0e7490;
+            --accent-light: #06b6d4;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --shadow: rgba(15, 23, 42, 0.08);
+            --gradient-start: #06b6d4;
+            --gradient-end: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --accent: #06b6d4;
+            --accent-hover: #22d3ee;
+            --accent-light: #67e8f9;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border: #334155;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --gradient-start: #06b6d4;
+            --gradient-end: #3b82f6;
+        }
         
         body {
-            font-family: 'Instrument Sans', -apple-system, sans-serif;
-            background: var(--bg-dark);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
             color: var(--text-primary);
             line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            transition: background 0.3s ease, color 0.3s ease;
         }
         
         .container {
-            max-width: 1100px;
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 0 32px;
         }
         
         /* Header */
-        .header {
-            padding: 24px 0;
-            border-bottom: 1px solid var(--border-subtle);
+        header {
+            background: var(--bg-card);
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
         }
         
         .header-content {
@@ -47,701 +83,1996 @@
         }
         
         .logo {
-            font-family: 'Fraunces', serif;
             font-size: 28px;
-            font-weight: 800;
-            color: var(--accent-cyan);
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             text-decoration: none;
+            letter-spacing: -1px;
         }
         
-        .header-badge {
-            background: rgba(0, 245, 212, 0.1);
-            border: 1px solid rgba(0, 245, 212, 0.3);
-            color: var(--accent-cyan);
-            padding: 8px 16px;
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 18px;
+        }
+        
+        .theme-toggle:hover {
+            border-color: var(--accent);
+            transform: rotate(180deg);
+        }
+        
+        .btn-header {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            padding: 12px 28px;
             border-radius: 100px;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+        }
+        
+        .btn-header:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(6, 182, 212, 0.4);
         }
         
         /* Hero */
         .hero {
-            padding: 80px 0 60px;
-            text-align: center;
-            position: relative;
+            padding: 60px 0 80px;
+            background: var(--bg);
         }
         
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 800px;
-            height: 600px;
-            background: radial-gradient(ellipse, rgba(0, 245, 212, 0.08) 0%, transparent 70%);
-            pointer-events: none;
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: start;
         }
         
-        .hero-label {
-            display: inline-block;
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-secondary);
+        .hero-left {
+            padding-top: 40px;
+        }
+        
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1));
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--accent);
             padding: 8px 20px;
             border-radius: 100px;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+        
+        .hero-badge::before {
+            content: '🏆';
+        }
+        
+        h1 {
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -2px;
             margin-bottom: 32px;
+        }
+        
+        h1 .highlight {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-usps {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        
+        .usp-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .usp-item::before {
+            content: '✓';
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+        
+        .hero-logos {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 32px;
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .hero-logo {
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         
-        .hero h1 {
-            font-family: 'Fraunces', serif;
-            font-size: clamp(42px, 7vw, 72px);
-            font-weight: 700;
-            line-height: 1.1;
-            margin-bottom: 24px;
-            letter-spacing: -2px;
-        }
-        
-        .hero h1 span {
-            color: var(--accent-cyan);
-        }
-        
-        .hero-subtitle {
-            font-size: 20px;
-            color: var(--text-secondary);
-            max-width: 580px;
-            margin: 0 auto 48px;
-            line-height: 1.7;
-        }
-        
-        /* CTA Button */
-        .btn-primary {
-            display: inline-flex;
+        .hero-team {
+            display: flex;
             align-items: center;
-            gap: 12px;
-            background: var(--accent-cyan);
-            color: #000;
-            font-size: 18px;
-            font-weight: 700;
-            padding: 20px 40px;
-            border-radius: 12px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
+            gap: 16px;
         }
         
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 40px rgba(0, 245, 212, 0.25);
+        .hero-team-photos {
+            display: flex;
+            margin-left: -8px;
         }
         
-        .btn-primary .arrow {
-            font-size: 24px;
+        .hero-team-photo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 3px solid var(--bg);
+            background: linear-gradient(135deg, #ddd6fe, #c4b5fd);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-left: -8px;
             transition: transform 0.3s;
         }
         
-        .btn-primary:hover .arrow {
-            transform: translateX(4px);
-        }
-        
-        .btn-secondary {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: transparent;
-            border: 1px solid var(--border-subtle);
-            color: var(--text-secondary);
-            font-size: 16px;
-            font-weight: 600;
-            padding: 16px 32px;
-            border-radius: 12px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            margin-left: 16px;
-        }
-        
-        .btn-secondary:hover {
-            border-color: var(--accent-cyan);
-            color: var(--accent-cyan);
-        }
-        
-        /* Benefits Bar */
-        .benefits-bar {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 48px;
-            flex-wrap: wrap;
-        }
-        
-        .benefit-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        
-        .benefit-check {
-            color: var(--accent-cyan);
-            font-size: 18px;
-        }
-        
-        /* Preview Section */
-        .preview-section {
-            padding: 80px 0;
-        }
-        
-        .preview-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 24px;
-            padding: 48px;
-            text-align: center;
-        }
-        
-        .preview-title {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-        }
-        
-        .preview-metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 24px;
-            margin-top: 32px;
-        }
-        
-        .metric-card {
-            background: var(--bg-dark);
-            border: 1px solid var(--border-subtle);
-            border-radius: 16px;
-            padding: 32px 24px;
-            transition: all 0.3s;
-        }
-        
-        .metric-card:hover {
-            border-color: var(--accent-cyan);
+        .hero-team-photo:hover {
             transform: translateY(-4px);
+            z-index: 10;
         }
         
-        .metric-icon {
-            font-size: 40px;
-            margin-bottom: 16px;
-        }
-        
-        .metric-value {
-            font-family: 'Fraunces', serif;
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--accent-cyan);
-            line-height: 1;
-        }
-        
-        .metric-value.coral { color: var(--accent-coral); }
-        .metric-value.gold { color: var(--accent-gold); }
-        
-        .metric-label {
-            color: var(--text-secondary);
+        .hero-team-text {
             font-size: 14px;
-            margin-top: 8px;
+            color: var(--text-secondary);
+            line-height: 1.5;
         }
         
-        /* Features Section */
-        .features-section {
-            padding: 80px 0;
-            border-top: 1px solid var(--border-subtle);
+        .hero-team-text strong {
+            color: var(--text-primary);
+            font-weight: 700;
         }
         
-        .section-header {
+        .hero-right {
+            position: sticky;
+            top: 100px;
+        }
+        
+        .hero-calculator {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 20px 60px var(--shadow);
+        }
+        
+        .calculator-header {
             text-align: center;
-            margin-bottom: 64px;
+            margin-bottom: 32px;
         }
         
-        .section-header h2 {
-            font-family: 'Fraunces', serif;
-            font-size: 40px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -1px;
-        }
-        
-        .section-header p {
-            color: var(--text-secondary);
-            font-size: 18px;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
-        }
-        
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 20px;
-            padding: 36px;
-            transition: all 0.3s;
-        }
-        
-        .feature-card:hover {
-            border-color: rgba(0, 245, 212, 0.3);
-            background: rgba(0, 245, 212, 0.02);
-        }
-        
-        .feature-icon-wrap {
-            width: 56px;
-            height: 56px;
-            background: rgba(0, 245, 212, 0.1);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            margin-bottom: 20px;
-        }
-        
-        .feature-card h3 {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-        
-        .feature-card p {
-            color: var(--text-secondary);
-            font-size: 15px;
-            line-height: 1.7;
-        }
-        
-        /* Team Section */
-        .team-section {
-            padding: 80px 0;
-            border-top: 1px solid var(--border-subtle);
-        }
-        
-        .team-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 32px;
-            margin-top: 48px;
-        }
-        
-        .team-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 20px;
-            padding: 36px;
-        }
-        
-        .team-avatar {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
+        .calculator-avatar {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             border-radius: 50%;
-            margin-bottom: 20px;
+            margin: 0 auto 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 36px;
         }
         
-        .team-name {
-            font-size: 22px;
-            font-weight: 700;
+        .calculator-title {
+            font-size: 20px;
+            font-weight: 800;
             margin-bottom: 8px;
         }
         
-        .team-credentials {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
-        
-        .credential-badge {
-            background: rgba(0, 245, 212, 0.1);
-            border: 1px solid rgba(0, 245, 212, 0.2);
-            color: var(--accent-cyan);
-            padding: 4px 12px;
-            border-radius: 100px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .team-bio {
+        .calculator-subtitle {
+            font-size: 14px;
             color: var(--text-secondary);
-            font-size: 15px;
-            line-height: 1.7;
         }
         
-        /* FAQ Section */
-        .faq-section {
-            padding: 80px 0;
-            border-top: 1px solid var(--border-subtle);
+        .calculator-input {
+            margin-bottom: 24px;
         }
         
-        .faq-list {
-            max-width: 700px;
-            margin: 48px auto 0;
-        }
-        
-        .faq-item {
-            border-bottom: 1px solid var(--border-subtle);
-            padding: 28px 0;
-        }
-        
-        .faq-item:first-child {
-            border-top: 1px solid var(--border-subtle);
-        }
-        
-        .faq-question {
-            font-size: 18px;
-            font-weight: 600;
+        .calculator-label {
+            font-size: 14px;
+            font-weight: 700;
             margin-bottom: 12px;
-            display: flex;
+            display: block;
+            color: var(--text-primary);
+        }
+        
+        .calculator-value {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 32px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .calculator-slider {
+            margin-top: 12px;
+        }
+        
+        .calculator-slider input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .calculator-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+        }
+        
+        .calculator-slider input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+        }
+        
+        .calculator-result {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1));
+            border: 2px solid var(--accent);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            margin: 24px 0;
+        }
+        
+        .calculator-result-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .calculator-result-value {
+            font-size: 40px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        
+        .calculator-result-sub {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            display: inline-flex;
             align-items: center;
             gap: 12px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 700;
+            padding: 20px 48px;
+            border-radius: 100px;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
         }
         
-        .faq-question::before {
-            content: '?';
-            width: 28px;
-            height: 28px;
-            background: rgba(0, 245, 212, 0.1);
-            border-radius: 50%;
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px rgba(245, 158, 11, 0.4);
+        }
+        
+        /* Logos */
+        .logos-section {
+            padding: 40px 0;
+            text-align: center;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logos-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+        
+        .logos-grid {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            flex-wrap: wrap;
+            opacity: 0.5;
+        }
+        
+        .logo-item {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        /* Team Grid */
+        .team-section {
+            padding: 100px 0;
+            background: var(--bg-card);
+        }
+        
+        .team-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .team-header h2 {
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 900;
+            line-height: 1.2;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .team-header p {
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+        
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        
+        .team-photo {
+            aspect-ratio: 4/5;
+            border-radius: 20px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #e0f2fe, #bae6fd);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            color: var(--accent-cyan);
-            flex-shrink: 0;
+            font-size: 80px;
+            transition: all 0.3s;
         }
         
-        .faq-answer {
-            color: var(--text-secondary);
-            font-size: 15px;
-            line-height: 1.7;
-            padding-left: 40px;
+        .team-photo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px var(--shadow);
         }
         
-        /* Final CTA */
-        .final-cta {
-            padding: 100px 0;
+        .team-text {
             text-align: center;
-            background: linear-gradient(180deg, transparent, rgba(0, 245, 212, 0.03));
-        }
-        
-        .final-cta h2 {
-            font-family: 'Fraunces', serif;
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 24px;
-            letter-spacing: -1px;
-        }
-        
-        .final-cta p {
-            color: var(--text-secondary);
-            font-size: 18px;
-            margin-bottom: 40px;
-            max-width: 500px;
+            margin-top: 40px;
+            max-width: 800px;
             margin-left: auto;
             margin-right: auto;
         }
         
-        /* Footer */
-        .footer {
-            border-top: 1px solid var(--border-subtle);
-            padding: 32px 0;
+        .team-text h3 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .team-text p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px;
+            margin: 80px auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 48px;
+            box-shadow: 0 10px 40px var(--shadow);
+        }
+        
+        .stat-box {
             text-align: center;
+        }
+        
+        .stat-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .stat-number {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        /* Features Section */
+        .features-section {
+            padding: 100px 0;
+            background: var(--bg);
+        }
+        
+        .section-header {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 80px;
+        }
+        
+        .section-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        h2 {
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 900;
+            line-height: 1.2;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .section-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 32px;
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px;
+            transition: all 0.3s;
+        }
+        
+        .feature-card:hover {
+            box-shadow: 0 20px 60px var(--shadow);
+            transform: translateY(-4px);
+        }
+        
+        .feature-icon {
+            font-size: 56px;
+            margin-bottom: 24px;
+        }
+        
+        .feature-card h3 {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+        
+        /* Dark Section */
+        .dark-section {
+            background: var(--dark-bg);
+            padding: 100px 0;
+            color: var(--dark-text);
+        }
+        
+        .dark-section h2 {
+            color: var(--dark-text);
+        }
+        
+        .dark-section .section-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* Comparison Table */
+        .comparison-section {
+            padding: 100px 0;
+            background: var(--bg);
+        }
+        
+        .comparison-table {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px var(--shadow);
+        }
+        
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 24px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .comparison-table thead th {
+            background: var(--bg);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+        
+        .comparison-table thead th:first-child {
+            color: var(--text-primary);
+            font-size: 16px;
+            background: transparent;
+        }
+        
+        .comparison-table th.wpma {
+            background: linear-gradient(135deg, rgba(0, 245, 212, 0.1), rgba(0, 212, 184, 0.05));
+            color: var(--accent);
+            position: relative;
+        }
+        
+        .comparison-table th.wpma::before {
+            content: '🏆';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+        }
+        
+        .comparison-table tbody td {
+            font-size: 15px;
+        }
+        
+        .comparison-table tbody td:first-child {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .comparison-table .check {
+            color: var(--accent);
+            font-weight: 900;
+            font-size: 20px;
+        }
+        
+        .comparison-table .cross {
+            color: #ef4444;
+            font-weight: 900;
+            font-size: 20px;
+        }
+        
+        .comparison-table .partial {
+            color: #f59e0b;
+            font-weight: 900;
+            font-size: 20px;
+        }
+        
+        .comparison-table tbody tr:hover {
+            background: var(--bg);
+        }
+        
+        .comparison-table tbody td.wpma {
+            background: linear-gradient(135deg, rgba(0, 245, 212, 0.05), rgba(0, 212, 184, 0.02));
+            font-weight: 700;
+        }
+        
+        .comparison-cta {
+            text-align: center;
+            padding: 48px;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+        }
+        
+        .comparison-cta h3 {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .comparison-cta p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        
+        /* Case Study */
+        .case-study {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 64px;
+            margin: 80px auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+            box-shadow: 0 10px 40px var(--shadow);
+        }
+        
+        .case-image {
+            aspect-ratio: 4/3;
+            border-radius: 20px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #ddd6fe, #c4b5fd);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+        }
+        
+        .case-content {
+            padding: 20px 0;
+        }
+        
+        .case-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+        
+        .case-badge::before {
+            content: '✓';
+        }
+        
+        .case-content h3 {
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1.3;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+        }
+        
+        .case-quote {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 32px;
+        }
+        
+        .case-author {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .case-avatar {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .case-author-info h4 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+        
+        .case-author-info p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .case-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+        
+        .case-metric {
+            text-align: center;
+            padding: 20px;
+            background: var(--bg);
+            border-radius: 16px;
+        }
+        
+        .case-metric-value {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        
+        .case-metric-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* ROI Calculator */
+        .roi-section {
+            padding: 100px 0;
+            background: linear-gradient(180deg, var(--bg), var(--bg-card));
+        }
+        
+        .roi-calculator {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 64px;
+            max-width: 1000px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px var(--shadow);
+        }
+        
+        .roi-inputs {
+            display: grid;
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+        
+        .roi-input-group label {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .roi-input-group input[type="number"] {
+            width: 100%;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--accent);
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .roi-input-group input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .roi-slider {
+            margin-top: 16px;
+        }
+        
+        .roi-slider input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .roi-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .roi-slider input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .roi-hint {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+        
+        .roi-results {
+            display: grid;
+            gap: 32px;
+        }
+        
+        .roi-comparison {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 32px;
+            align-items: center;
+        }
+        
+        .roi-result-card {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .roi-result-card.highlight {
+            border-color: var(--accent);
+            background: linear-gradient(180deg, rgba(0, 245, 212, 0.05), var(--bg));
+        }
+        
+        .roi-result-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .roi-result-value {
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+        
+        .roi-result-value.accent {
+            color: var(--accent);
+        }
+        
+        .roi-result-breakdown {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .roi-arrow {
+            font-size: 40px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+        
+        .roi-savings {
+            background: linear-gradient(135deg, rgba(0, 245, 212, 0.1), rgba(0, 212, 184, 0.05));
+            border: 2px solid var(--accent);
+            border-radius: 24px;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        
+        .roi-savings-icon {
+            font-size: 72px;
+        }
+        
+        .roi-savings-content {
+            flex: 1;
+        }
+        
+        .roi-savings-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .roi-savings-value {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+        
+        .roi-savings-yearly {
+            font-size: 20px;
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+        
+        /* Pricing */
+        .pricing-section {
+            padding: 100px 0;
+            background: var(--bg-card);
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .pricing-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 24px;
+            padding: 48px;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .pricing-card:hover {
+            box-shadow: 0 20px 60px var(--shadow);
+            transform: translateY(-8px);
+        }
+        
+        .pricing-card.featured {
+            border-color: var(--accent);
+            border-width: 3px;
+        }
+        
+        .pricing-badge {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 8px 24px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        
+        .pricing-plan {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+        
+        .pricing-price {
+            font-size: 64px;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        
+        .pricing-price span {
+            font-size: 24px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        .pricing-original {
+            font-size: 20px;
+            color: var(--text-secondary);
+            text-decoration: line-through;
+            margin-bottom: 12px;
+        }
+        
+        .pricing-launch {
+            display: inline-block;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #d97706;
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 32px;
+        }
+        
+        .pricing-features {
+            list-style: none;
+            margin: 32px 0;
+        }
+        
+        .pricing-features li {
+            padding: 12px 0;
+            color: var(--text-secondary);
+            font-size: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--accent);
+            font-weight: 900;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .pricing-features li.highlight {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+        
+        .btn-pricing {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            padding: 18px 32px;
+            border-radius: 100px;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-pricing:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(245, 158, 11, 0.4);
+        }
+        
+        .btn-pricing.secondary {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-pricing.secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        
+        /* FAQ */
+        .faq-section {
+            padding: 100px 0;
+            background: var(--bg);
+        }
+        
+        .faq-list {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        
+        .faq-item:hover {
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+        
+        .faq-question {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .faq-answer {
+            color: var(--text-secondary);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+        
+        /* Footer */
+        footer {
+            background: var(--dark-bg);
+            color: var(--dark-text);
+            padding: 60px 0;
+        }
+        
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 32px;
         }
         
         .footer-links {
             display: flex;
-            justify-content: center;
-            gap: 32px;
-            margin-bottom: 16px;
+            gap: 40px;
         }
         
         .footer-links a {
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
-            font-size: 14px;
+            font-size: 15px;
             transition: color 0.3s;
         }
         
         .footer-links a:hover {
-            color: var(--accent-cyan);
+            color: var(--accent);
         }
         
         .footer-copy {
-            color: var(--text-secondary);
-            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
         }
-        
-        /* Animations */
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        .metric-card:nth-child(1) { animation: float 4s ease-in-out infinite; }
-        .metric-card:nth-child(2) { animation: float 4s ease-in-out infinite 0.5s; }
-        .metric-card:nth-child(3) { animation: float 4s ease-in-out infinite 1s; }
-        .metric-card:nth-child(4) { animation: float 4s ease-in-out infinite 1.5s; }
         
         /* Responsive */
         @media (max-width: 768px) {
-            .hero h1 {
+            h1 {
                 font-size: 36px;
-                letter-spacing: -1px;
             }
             
-            .hero-subtitle {
-                font-size: 17px;
+            h2 {
+                font-size: 28px;
             }
             
-            .benefits-bar {
+            .hero-grid {
+                grid-template-columns: 1fr;
+                gap: 48px;
+            }
+            
+            .hero-right {
+                position: static;
+            }
+            
+            .team-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .case-study {
+                grid-template-columns: 1fr;
+                padding: 40px 24px;
+            }
+            
+            .roi-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .roi-arrow {
+                transform: rotate(90deg);
+            }
+            
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .roi-savings {
                 flex-direction: column;
-                gap: 16px;
-                align-items: center;
+                text-align: center;
             }
             
-            .metric-value {
-                font-size: 36px;
+            .comparison-table {
+                overflow-x: auto;
             }
             
-            .final-cta h2 {
-                font-size: 32px;
-            }
-            
-            .section-header h2 {
-                font-size: 32px;
-            }
-            
-            .btn-secondary {
-                margin-left: 0;
-                margin-top: 16px;
-            }
-            
-            .header-badge {
-                display: none;
-            }
-            
-            .faq-answer {
-                padding-left: 0;
+            .comparison-table table {
+                min-width: 600px;
             }
         }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="container header-content">
-            <a href="/" class="logo">WPMA.io</a>
-            <span class="header-badge">✨ Kostenloser Security-Check</span>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">WPMA<span>.io</span></a>
+                <div style="display: flex; align-items: center; gap: 24px;">
+                    <button id="themeToggle" class="theme-toggle" aria-label="Theme wechseln">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    <a href="https://app.wpma.io/auth/register" class="btn-header">Meine Analyse starten</a>
+                </div>
+            </div>
         </div>
     </header>
 
     <main>
-        <!-- Hero Section -->
+        <!-- Hero -->
         <section class="hero">
             <div class="container">
-                <span class="hero-label">- Kostenlose Analyse in 2 Minuten -</span>
-                <h1>
-                    Finde heraus, wie <span>sicher</span> deine WordPress‑Site wirklich ist
-                </h1>
-                <p class="hero-subtitle">
-                    Starte jetzt den kostenlosen Check und erfahre mit wenigen Klicks, ob deine Website wirklich geschützt ist – oder ob du gerade ein Sicherheitsrisiko übersiehst.
-                </p>
-                <div>
-                    <a href="https://app.wpma.io/auth/register" class="btn-primary">
-                        Jetzt Check starten <span class="arrow">→</span>
-                    </a>
-                    <a href="https://app.wpma.io/auth/login" class="btn-secondary">
-                        Zum Login
-                    </a>
-                </div>
-                <div class="benefits-bar">
-                    <div class="benefit-item">
-                        <span class="benefit-check">✓</span>
-                        In 2 Minuten zur Analyse
+                <div class="hero-grid">
+                    <div class="hero-left">
+                        <div class="hero-badge">
+                            Marktführer für WordPress Management
+                        </div>
+                        
+                        <h1>
+                            Verwandle WordPress-Sites wie magisch in <span class="highlight">selbst-reparierende</span> Systeme
+                        </h1>
+                        
+                        <div class="hero-usps">
+                            <div class="usp-item">95% weniger Notfall-Anrufe durch Self-Healing KI</div>
+                            <div class="usp-item">Staging in 5 Minuten statt 5 Stunden</div>
+                            <div class="usp-item">Auto-Rollback × AI für maximale Sicherheit</div>
+                        </div>
+                        
+                        <div class="hero-logos">
+                            <div class="hero-logo">ManageWP</div>
+                            <div class="hero-logo">MainWP</div>
+                            <div class="hero-logo">InfiniteWP</div>
+                        </div>
+                        
+                        <div class="hero-team">
+                            <div class="hero-team-photos">
+                                <div class="hero-team-photo">👨‍💻</div>
+                                <div class="hero-team-photo">👩‍💼</div>
+                                <div class="hero-team-photo">🧑‍🔬</div>
+                                <div class="hero-team-photo">👨‍🎨</div>
+                                <div class="hero-team-photo">👩‍💻</div>
+                            </div>
+                            <div class="hero-team-text">
+                                WPMA ist ein <strong>Expertenteam</strong>, bestehend aus<br>
+                                <strong>Entwicklern</strong>, Strategen, <strong>DevOps</strong> und <strong>KI-Spezialisten</strong>
+                            </div>
+                        </div>
                     </div>
-                    <div class="benefit-item">
-                        <span class="benefit-check">✓</span>
-                        100% kostenlos & unverbindlich
-                    </div>
-                    <div class="benefit-item">
-                        <span class="benefit-check">✓</span>
-                        Sofortige Handlungsempfehlungen
+                    
+                    <div class="hero-right">
+                        <div class="hero-calculator">
+                            <div class="calculator-header">
+                                <div class="calculator-avatar">🤔</div>
+                                <div class="calculator-title">Lohnt sich WPMA für mich?</div>
+                                <div class="calculator-subtitle">Berechne deine Ersparnis in Sekunden</div>
+                            </div>
+                            
+                            <div class="calculator-input">
+                                <label class="calculator-label" for="heroSites">Wie viele WordPress-Sites verwaltest du?</label>
+                                <div class="calculator-value" id="heroSitesValue">10</div>
+                                <div class="calculator-slider">
+                                    <input type="range" id="heroSites" min="1" max="100" value="10">
+                                </div>
+                            </div>
+                            
+                            <div class="calculator-result">
+                                <div class="calculator-result-label">Deine monatliche Ersparnis</div>
+                                <div class="calculator-result-value" id="heroSavings">2.801€</div>
+                                <div class="calculator-result-sub" id="heroYearlySavings">= 33.612€/Jahr</div>
+                            </div>
+                            
+                            <a href="https://app.wpma.io/auth/register" class="btn-primary" style="width: 100%;">
+                                Kostenfreie Analyse starten
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Preview Section -->
-        <section class="preview-section">
+        <!-- Logos -->
+        <section class="logos-section">
             <div class="container">
-                <div class="preview-box">
-                    <span class="preview-title">Nach der Analyse erhältst du:</span>
-                    <div class="preview-metrics">
-                        <div class="metric-card">
-                            <div class="metric-icon">🛡️</div>
-                            <div class="metric-value">0-100</div>
-                            <div class="metric-label">Dein Security-Score</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-icon">⚠️</div>
-                            <div class="metric-value coral">12+</div>
-                            <div class="metric-label">Sicherheits-Checks</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-icon">⚡</div>
-                            <div class="metric-value gold">LCP</div>
-                            <div class="metric-label">Core Web Vitals</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-icon">📋</div>
-                            <div class="metric-value">PDF</div>
-                            <div class="metric-label">Action-Plan Report</div>
-                        </div>
-                    </div>
+                <div class="logos-title">WordPress-Profis vertrauen auf WPMA.io</div>
+                <div class="logos-grid">
+                    <div class="logo-item">Agenturen</div>
+                    <div class="logo-item">Freelancer</div>
+                    <div class="logo-item">E-Commerce</div>
+                    <div class="logo-item">Enterprises</div>
                 </div>
             </div>
         </section>
 
-        <!-- Features Section -->
-        <section class="features-section" id="features">
-            <div class="container">
-                <div class="section-header">
-                    <h2>Was WPMA.io für dich übernimmt</h2>
-                    <p>Automatisiere dein WordPress Management – mit KI-Unterstützung</p>
-                </div>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon-wrap">🤖</div>
-                        <h3>KI-gestützte Automatisierung</h3>
-                        <p>Intelligente Updates, Backups und Wartung – vollautomatisch. Die KI lernt deine Sites kennen und optimiert kontinuierlich.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon-wrap">🛡️</div>
-                        <h3>Proaktive Security-Scans</h3>
-                        <p>Tägliche Schwachstellen-Scans, SSL-Checks und Erkennung veralteter Plugins – bevor Hacker zuschlagen.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon-wrap">⚡</div>
-                        <h3>Performance-Monitoring</h3>
-                        <p>Core Web Vitals, Ladezeiten und Datenbank-Performance – alles in einem übersichtlichen Dashboard.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon-wrap">📊</div>
-                        <h3>24/7 Uptime-Monitoring</h3>
-                        <p>Alle 5 Minuten prüfen wir deine Site. Bei Downtime wirst du sofort per E-Mail benachrichtigt.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon-wrap">💾</div>
-                        <h3>Automatische Backups</h3>
-                        <p>Tägliche Backups mit intelligenter Versionierung. 1-Klick-Wiederherstellung, falls etwas schiefgeht.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon-wrap">🧠</div>
-                        <h3>AI-Empfehlungen</h3>
-                        <p>Personalisierte Optimierungsvorschläge basierend auf den Daten deiner WordPress-Sites.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Team Section -->
+        <!-- Team -->
         <section class="team-section">
             <div class="container">
-                <div class="section-header">
-                    <h2>Wer steckt dahinter?</h2>
-                    <p>Erfahrene WordPress-Experten und Entwickler</p>
+                <div class="team-header">
+                    <div class="hero-label">Dein WordPress Management-Team</div>
+                    <h2>Ein Experten-Team ist alles was du brauchst!</h2>
+                    <p>Wir holen deine WordPress-Sites digital ab – damit sie sich selbst verwalten</p>
                 </div>
+                
                 <div class="team-grid">
-                    <div class="team-card">
-                        <div class="team-avatar">👨‍💻</div>
-                        <div class="team-name">Das WPMA-Team</div>
-                        <div class="team-credentials">
-                            <span class="credential-badge">100+ Sites verwaltet</span>
-                            <span class="credential-badge">5+ Jahre Erfahrung</span>
-                        </div>
-                        <p class="team-bio">
-                            Wir haben jahrelang WordPress-Sites manuell gewartet und wissen, wie zeitaufwändig das sein kann. Deshalb haben wir WPMA.io entwickelt – um dir die Arbeit abzunehmen.
-                        </p>
+                    <div class="team-photo">👨‍💻</div>
+                    <div class="team-photo">👩‍💼</div>
+                    <div class="team-photo">🧑‍🔬</div>
+                    <div class="team-photo">👨‍🎨</div>
+                    <div class="team-photo">👩‍💻</div>
+                    <div class="team-photo">🧑‍💼</div>
+                </div>
+                
+                <div class="team-text">
+                    <h3>WPMA ist ein Expertenteam, bestehend aus Entwicklern, DevOps und KI-Spezialisten</h3>
+                    <p>Wir sind ein Expertenteam aus WordPress-Veteranen, Cloud-Architekten und Machine Learning Engineers. Mit dem Ziel, deine WordPress-Sites in selbst-verwaltende Systeme zu verwandeln.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Bar -->
+        <div class="container">
+            <div class="stats-bar">
+                <div class="stat-box">
+                    <div class="stat-icon">🧠</div>
+                    <div class="stat-number">95%</div>
+                    <div class="stat-label">Self-Healing Erfolgsrate</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-number">5min</div>
+                    <div class="stat-label">Staging erstellen</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-number">12h</div>
+                    <div class="stat-label">Gespart pro Woche</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-icon">🔄</div>
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Auto-Rollback</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dark Section -->
+        <section class="dark-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">Nr. 1 WordPress Management Platform</div>
+                    <h2>Warum setzen Agenturen auf uns?</h2>
+                    <p class="section-subtitle">Weil wir aus WordPress-Chaos Ordnung machen...</p>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>Self-Healing Technologie...</h3>
+                        <p>95% unserer Probleme werden automatisch gelöst. Mit KI-gestützten Fixes verschaffen wir dir einen unfairen Vorteil!</p>
                     </div>
-                    <div class="team-card">
-                        <div class="team-avatar">🚀</div>
-                        <div class="team-name">Unsere Mission</div>
-                        <div class="team-credentials">
-                            <span class="credential-badge">95% Zeitersparnis</span>
-                            <span class="credential-badge">24/7 Automation</span>
-                        </div>
-                        <p class="team-bio">
-                            WordPress-Wartung sollte nicht dein Vollzeitjob sein. Mit WPMA.io sparst du bis zu 95% der Zeit und kannst dich auf dein eigentliches Business konzentrieren.
-                        </p>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Modernes & datenbasiertes Management</h3>
+                        <p>WordPress Management ist 2025 ein Data-Game. Mit Echtzeit-Monitoring verlassen wir uns nicht nur auf Bauchgefühl, sondern auf Fakten.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Such dir deine Kunden endlich aus!</h3>
+                        <p>Such dir endlich die Projekte aus, die wirklich zu dir passen! Arbeite mit Wunschkunden, statt deine Zeit mit Notfällen zu verschwenden.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- FAQ Section -->
-        <section class="faq-section" id="faq">
+        <!-- Comparison Table -->
+        <section class="comparison-section">
             <div class="container">
                 <div class="section-header">
-                    <h2>Häufige Fragen</h2>
+                    <div class="section-label">VERGLEICH</div>
+                    <h2>WPMA vs. Die Konkurrenz</h2>
+                    <p class="section-subtitle">
+                        Wir haben Features, die NIEMAND SONST hat. Sieh selbst.
+                    </p>
                 </div>
+                
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th class="wpma">WPMA.io</th>
+                                <th>ManageWP</th>
+                                <th>MainWP</th>
+                                <th>WP Engine</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Preis (25 Sites)</td>
+                                <td class="wpma"><strong>49€/Monat</strong></td>
+                                <td>200€/Monat</td>
+                                <td>299€ einmalig</td>
+                                <td>600€+/Monat</td>
+                            </tr>
+                            <tr>
+                                <td>Self-Healing KI</td>
+                                <td class="wpma"><span class="check">✓</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="cross">✗</span></td>
+                            </tr>
+                            <tr>
+                                <td>Auto-Rollback System</td>
+                                <td class="wpma"><span class="check">✓</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="partial">⚠</span> Basis</td>
+                            </tr>
+                            <tr>
+                                <td>Staging-Umgebungen</td>
+                                <td class="wpma"><span class="check">✓</span> Unlimited</td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="partial">⚠</span> Manuell</td>
+                                <td><span class="check">✓</span> 1 pro Site</td>
+                            </tr>
+                            <tr>
+                                <td>KI-Chat-Management</td>
+                                <td class="wpma"><span class="check">✓</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="cross">✗</span></td>
+                            </tr>
+                            <tr>
+                                <td>White-Label Dashboard</td>
+                                <td class="wpma"><span class="check">✓</span></td>
+                                <td><span class="partial">⚠</span> Extra</td>
+                                <td><span class="check">✓</span></td>
+                                <td><span class="cross">✗</span></td>
+                            </tr>
+                            <tr>
+                                <td>Inkrementelle Backups</td>
+                                <td class="wpma"><span class="check">✓</span> Alle 6h</td>
+                                <td><span class="check">✓</span> Täglich</td>
+                                <td><span class="check">✓</span> Täglich</td>
+                                <td><span class="check">✓</span> Täglich</td>
+                            </tr>
+                            <tr>
+                                <td>24/7 Monitoring</td>
+                                <td class="wpma"><span class="check">✓</span> Alle 5min</td>
+                                <td><span class="check">✓</span></td>
+                                <td><span class="check">✓</span></td>
+                                <td><span class="check">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td>Client Portal</td>
+                                <td class="wpma"><span class="check">✓</span></td>
+                                <td><span class="cross">✗</span></td>
+                                <td><span class="partial">⚠</span> Extension</td>
+                                <td><span class="cross">✗</span></td>
+                            </tr>
+                            <tr>
+                                <td>Setup-Zeit</td>
+                                <td class="wpma"><strong>2 Minuten</strong></td>
+                                <td>5-10 Minuten</td>
+                                <td>30+ Minuten</td>
+                                <td>Custom</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="comparison-cta">
+                        <h3>Der klare Gewinner: WPMA.io</h3>
+                        <p>Mehr Features. Besserer Preis. Einzigartige KI-Technologie.</p>
+                        <a href="https://app.wpma.io/auth/register" class="btn-primary">
+                            Jetzt 40% Launch-Rabatt sichern
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Case Study 1 -->
+        <div class="container">
+            <div class="case-study">
+                <div class="case-image">💼</div>
+                <div class="case-content">
+                    <div class="case-badge">Verifizierte Bewertung</div>
+                    <h3>"Mein Vertriebler kommt an seine Kapazitätsgrenzen. Nur aufgrund von WPMA!"</h3>
+                    <p class="case-quote">
+                        "Ich wollte endlich nachts durchschlafen können – doch ich war anfangs skeptisch. 
+                        Würde WPMA wirklich den Unterschied machen? Schon wenige Wochen nach dem Setup 
+                        gab es keine nächtlichen Anrufe mehr. Die Zweifel waren blitzschnell verflogen."
+                    </p>
+                    <div class="case-author">
+                        <div class="case-avatar">👨‍💻</div>
+                        <div class="case-author-info">
+                            <h4>Marcus Weber</h4>
+                            <p>Geschäftsführer · WebAgentur Nord</p>
+                        </div>
+                    </div>
+                    <div class="case-metrics">
+                        <div class="case-metric">
+                            <div class="case-metric-value">87%</div>
+                            <div class="case-metric-label">Weniger Notfälle</div>
+                        </div>
+                        <div class="case-metric">
+                            <div class="case-metric-value">12h</div>
+                            <div class="case-metric-label">Gespart/Woche</div>
+                        </div>
+                        <div class="case-metric">
+                            <div class="case-metric-value">50+</div>
+                            <div class="case-metric-label">Sites verwaltet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <section class="features-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">KILLER-FEATURES</div>
+                    <h2>WordPress Management für maximale Performance</h2>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>Self-Healing WordPress</h3>
+                        <p>Deine Sites reparieren sich automatisch. White Screen, Plugin-Konflikte, DB-Fehler – 95% aller Probleme werden erkannt und gefixt, bevor deine Kunden es merken.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h3>Auto-Rollback System</h3>
+                        <p>Jedes Update wird gesichert. Schlägt ein Update fehl, erfolgt automatischer Rollback innerhalb von Sekunden. Null Downtime, null Stress.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Staging in 5 Minuten</h3>
+                        <p>Ein Klick – 5 Minuten später hast du eine komplette Staging-Umgebung. Teste Updates, Plugins und Designs risikofrei.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>KI-Chat-Management</h3>
+                        <p>Verwalte alle Sites per Chat: "Backup all sites with WooCommerce". Conversational DevOps statt Klick-Marathon.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <h3>Proaktive Security</h3>
+                        <p>Tägliche Schwachstellen-Scans, SSL-Checks und Erkennung veralteter Plugins – bevor Hacker zuschlagen.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">💾</div>
+                        <h3>Intelligente Backups</h3>
+                        <p>Inkrementelle Backups alle 6 Stunden. Point-in-Time Recovery auf die Minute genau.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROI Calculator -->
+        <section class="roi-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">ROI-RECHNER</div>
+                    <h2>Berechne deine Zeitersparnis mit WPMA.io</h2>
+                    <p class="section-subtitle">
+                        Wie viel Zeit und Geld sparst du wirklich? Wissenschaftlich fundiert berechnet.
+                    </p>
+                </div>
+                
+                <div class="roi-calculator">
+                    <div class="roi-inputs">
+                        <div class="roi-input-group">
+                            <label for="sites">Wie viele WordPress-Sites verwaltest du?</label>
+                            <input type="number" id="sites" value="10" min="1" max="1000">
+                            <div class="roi-slider">
+                                <input type="range" id="sitesSlider" min="1" max="100" value="10">
+                            </div>
+                        </div>
+                        
+                        <div class="roi-input-group">
+                            <label>Stunden pro Site pro Monat (Wartung, Updates, Doku)</label>
+                            <input type="number" id="hours" value="3" readonly>
+                            <p class="roi-hint">Durchschnitt: 3 Stunden/Monat pro Site</p>
+                        </div>
+                        
+                        <div class="roi-input-group">
+                            <label>Dein Stundensatz</label>
+                            <input type="number" id="rate" value="100" readonly>
+                            <p class="roi-hint">Durchschnitt: 100€/Stunde</p>
+                        </div>
+                    </div>
+                    
+                    <div class="roi-results">
+                        <div class="roi-comparison">
+                            <div class="roi-result-card">
+                                <div class="roi-result-label">Aktuelle monatliche Kosten</div>
+                                <div class="roi-result-value" id="currentCost">3.000€</div>
+                                <div class="roi-result-breakdown" id="currentBreakdown">10 Sites × 3h × 100€</div>
+                            </div>
+                            
+                            <div class="roi-arrow">→</div>
+                            
+                            <div class="roi-result-card highlight">
+                                <div class="roi-result-label">Mit WPMA.io (95% Zeitersparnis)</div>
+                                <div class="roi-result-value accent" id="wpmaResult">199€</div>
+                                <div class="roi-result-breakdown" id="wpmaBreakdown">PRO Plan + 0,15h/Site</div>
+                            </div>
+                        </div>
+                        
+                        <div class="roi-savings">
+                            <div class="roi-savings-icon">💰</div>
+                            <div class="roi-savings-content">
+                                <div class="roi-savings-label">Deine Ersparnis</div>
+                                <div class="roi-savings-value" id="savings">2.801€/Monat</div>
+                                <div class="roi-savings-yearly" id="yearlyGains">= 33.612€/Jahr</div>
+                            </div>
+                        </div>
+                        
+                        <a href="https://app.wpma.io/auth/register" class="btn-primary" style="width: 100%; margin-top: 24px;">
+                            Jetzt 40% Rabatt sichern
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing -->
+        <section class="pricing-section" id="pricing">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">TRANSPARENTE PREISE</div>
+                    <h2>Wähle den Plan, der zu deinem Business passt</h2>
+                    <p class="section-subtitle">
+                        Keine versteckten Kosten. Keine Überraschungen. Jederzeit kündbar.
+                    </p>
+                </div>
+                
+                <div class="pricing-grid">
+                    <!-- FREE -->
+                    <div class="pricing-card">
+                        <div class="pricing-plan">FREE</div>
+                        <div class="pricing-price">0€ <span>/Monat</span></div>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 32px;">Dauerhaft kostenlos</p>
+                        
+                        <ul class="pricing-features">
+                            <li>1 WordPress-Site</li>
+                            <li>Security-Check Dashboard</li>
+                            <li>24/7 Uptime-Monitoring</li>
+                            <li>Performance-Monitoring</li>
+                            <li>E-Mail-Benachrichtigungen</li>
+                            <li>Community Support</li>
+                        </ul>
+                        
+                        <a href="https://app.wpma.io/auth/register" class="btn-pricing secondary">
+                            Kostenlos starten
+                        </a>
+                    </div>
+                    
+                    <!-- PRO -->
+                    <div class="pricing-card featured">
+                        <div class="pricing-badge">🔥 BELIEBT</div>
+                        <div class="pricing-plan">PRO</div>
+                        <div class="pricing-original">49€/Monat</div>
+                        <div class="pricing-price">29,40€ <span>/Monat</span></div>
+                        <span class="pricing-launch">🚀 40% LAUNCH-RABATT - 3 MONATE</span>
+                        
+                        <ul class="pricing-features">
+                            <li>3 WordPress-Sites</li>
+                            <li class="highlight">Self-Healing (25 Fixes/Monat)</li>
+                            <li class="highlight">Auto-Rollback System</li>
+                            <li class="highlight">Basic Staging (1 pro Site)</li>
+                            <li>Automatische Backups (täglich)</li>
+                            <li>1-Klick Wiederherstellung</li>
+                            <li>Auto-Updates (Plugins/Themes)</li>
+                            <li>SSL-Monitoring</li>
+                            <li>E-Mail-Support</li>
+                        </ul>
+                        
+                        <a href="https://app.wpma.io/auth/register" class="btn-pricing">
+                            Jetzt starten
+                        </a>
+                    </div>
+                    
+                    <!-- AGENCY -->
+                    <div class="pricing-card">
+                        <div class="pricing-plan">AGENCY</div>
+                        <div class="pricing-original">499€/Monat</div>
+                        <div class="pricing-price">299,40€ <span>/Monat</span></div>
+                        <span class="pricing-launch">🚀 40% LAUNCH-RABATT - 3 MONATE</span>
+                        
+                        <ul class="pricing-features">
+                            <li>100 WordPress-Sites</li>
+                            <li class="highlight">Self-Healing (Unlimited)</li>
+                            <li class="highlight">Unlimited Staging</li>
+                            <li class="highlight">Auto-Rollback System</li>
+                            <li class="highlight">White-Label Dashboard</li>
+                            <li class="highlight">Client Portal mit Branding</li>
+                            <li class="highlight">Conversational Bulk Actions</li>
+                            <li>Inkrementelle Backups (6h)</li>
+                            <li>Point-in-Time Recovery</li>
+                            <li>Team Management (Unlimited)</li>
+                            <li>Automatische Client-Reports</li>
+                            <li>API-Zugang</li>
+                            <li>Priority Support (24/7)</li>
+                        </ul>
+                        
+                        <a href="https://app.wpma.io/auth/register" class="btn-pricing">
+                            Agency-Plan starten
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ -->
+        <section class="faq-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">FAQ</div>
+                    <h2>Du hast Fragen? Wir haben die Antworten</h2>
+                </div>
+                
                 <div class="faq-list">
                     <div class="faq-item">
+                        <div class="faq-question">Was bedeutet "Self-Healing"?</div>
+                        <div class="faq-answer">
+                            Unsere KI erkennt automatisch Probleme wie White Screens, Plugin-Konflikte oder Datenbankfehler und behebt sie selbstständig – meist bevor du oder deine Kunden es überhaupt merken. 95% Erfolgsrate.
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">Wie funktioniert das Staging-System?</div>
+                        <div class="faq-answer">
+                            Ein Klick im Dashboard erstellt eine komplette Kopie deiner WordPress-Site mit eigener Datenbank und URLs. Nach Tests kannst du Änderungen mit einem Klick auf Live pushen – mit automatischem Backup.
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">Was passiert bei einem fehlgeschlagenen Update?</div>
+                        <div class="faq-answer">
+                            Unser Auto-Rollback System erstellt vor jedem Update einen Snapshot. Erkennt das System Probleme (Site down, PHP-Fehler, DB-Probleme), erfolgt automatisch ein Rollback – innerhalb von Sekunden.
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
                         <div class="faq-question">Ist meine Website bei euch sicher?</div>
-                        <div class="faq-answer">Absolut. Wir nutzen verschlüsselte Verbindungen (HTTPS), sichere API-Keys und speichern keine sensiblen Zugangsdaten. Deine WordPress-Credentials bleiben auf deinem Server.</div>
+                        <div class="faq-answer">
+                            Absolut. Wir nutzen verschlüsselte Verbindungen, sichere API-Keys und speichern keine sensiblen Zugangsdaten. Deine WordPress-Credentials bleiben auf deinem Server. Alle Backups sind verschlüsselt.
+                        </div>
                     </div>
+                    
                     <div class="faq-item">
-                        <div class="faq-question">Wie funktioniert der Security-Check?</div>
-                        <div class="faq-answer">Unser WordPress-Plugin analysiert 12+ Sicherheitsfaktoren: SSL, Debug-Mode, veraltete Plugins/Themes, Dateirechte, 2FA-Status und mehr. Du erhältst einen Score von 0-100 mit konkreten Handlungsempfehlungen.</div>
+                        <div class="faq-question">Kann ich kostenlos starten?</div>
+                        <div class="faq-answer">
+                            Ja! Der FREE-Plan ist dauerhaft kostenlos für 1 Site mit Security-Check, Uptime-Monitoring und Performance-Tracking. Upgrade jederzeit auf PRO oder AGENCY für erweiterte Features.
+                        </div>
                     </div>
+                    
                     <div class="faq-item">
-                        <div class="faq-question">Muss ich etwas installieren?</div>
-                        <div class="faq-answer">Ja, ein leichtgewichtiges WordPress-Plugin (ca. 20 KB). Die Installation dauert 2 Minuten. Das Plugin läuft im Hintergrund und sendet regelmäßig Status-Updates an dein WPMA-Dashboard.</div>
-                    </div>
-                    <div class="faq-item">
-                        <div class="faq-question">Was kostet WPMA.io?</div>
-                        <div class="faq-answer">Der Security-Check und die Basis-Features sind kostenlos. Für erweiterte Funktionen wie automatische Updates, tägliche Backups und AI-Empfehlungen bieten wir Premium-Pläne an.</div>
+                        <div class="faq-question">Was ist das Launch-Angebot?</div>
+                        <div class="faq-answer">
+                            Erste Kunden erhalten 40% Rabatt für 3 Monate auf alle bezahlten Pläne. PRO: 29,40€ statt 49€, AGENCY: 299,40€ statt 499€. Keine Mindestlaufzeit, jederzeit kündbar.
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- Final CTA -->
-        <section class="final-cta">
-            <div class="container">
-                <h2>Bereit für sichere WordPress-Sites?</h2>
-                <p>Starte jetzt deinen kostenlosen Security-Check und erfahre, wie sicher deine Website wirklich ist.</p>
-                <a href="https://app.wpma.io/auth/register" class="btn-primary">
-                    Jetzt kostenlos starten <span class="arrow">→</span>
-                </a>
             </div>
         </section>
     </main>
 
-    <footer class="footer">
+    <footer>
         <div class="container">
-            <div class="footer-links">
-                <a href="#">Datenschutz</a>
-                <a href="#">Impressum</a>
-                <a href="https://app.wpma.io/auth/login">Login</a>
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="#">Datenschutz</a>
+                    <a href="#">Impressum</a>
+                    <a href="https://app.wpma.io/auth/login">Login</a>
+                </div>
+                <p class="footer-copy">
+                    © 2025 WPMA.io - KI-gestützte WordPress Management Platform
+                </p>
             </div>
-            <p class="footer-copy">© 2025 WPMA.io - KI-gestützte WordPress Management Platform. Alle Rechte vorbehalten.</p>
         </div>
     </footer>
+    
+    <script>
+        // Hero Calculator
+        const heroSites = document.getElementById('heroSites');
+        const heroSitesValue = document.getElementById('heroSitesValue');
+        const heroSavings = document.getElementById('heroSavings');
+        const heroYearlySavings = document.getElementById('heroYearlySavings');
+        
+        function calculateHeroROI() {
+            const sites = parseInt(heroSites.value) || 10;
+            heroSitesValue.textContent = sites;
+            
+            const hours = 3;
+            const rate = 100;
+            const currentCost = sites * hours * rate;
+            
+            let wpmaPlan = 0;
+            if (sites <= 1) {
+                wpmaPlan = 0;
+            } else if (sites <= 3) {
+                wpmaPlan = 49;
+            } else {
+                wpmaPlan = 499;
+            }
+            
+            const remainingHours = sites * hours * 0.05;
+            const remainingCost = remainingHours * rate;
+            const totalWpmaCost = wpmaPlan + remainingCost;
+            
+            const savings = currentCost - totalWpmaCost;
+            const yearlyGains = savings * 12;
+            
+            heroSavings.textContent = `${Math.round(savings).toLocaleString('de-DE')}€`;
+            heroYearlySavings.textContent = `= ${Math.round(yearlyGains).toLocaleString('de-DE')}€/Jahr`;
+        }
+        
+        heroSites.addEventListener('input', calculateHeroROI);
+        calculateHeroROI();
+        
+        // ROI Calculator
+        const sitesInput = document.getElementById('sites');
+        const sitesSlider = document.getElementById('sitesSlider');
+        const hoursInput = document.getElementById('hours');
+        const rateInput = document.getElementById('rate');
+        
+        const currentCostEl = document.getElementById('currentCost');
+        const currentBreakdownEl = document.getElementById('currentBreakdown');
+        const wpmaResultEl = document.getElementById('wpmaResult');
+        const wpmaBreakdownEl = document.getElementById('wpmaBreakdown');
+        const savingsEl = document.getElementById('savings');
+        const yearlyGainsEl = document.getElementById('yearlyGains');
+        
+        function calculateROI() {
+            const sites = parseInt(sitesInput.value) || 10;
+            const hours = parseFloat(hoursInput.value) || 3;
+            const rate = parseInt(rateInput.value) || 100;
+            
+            const currentCost = sites * hours * rate;
+            
+            let wpmaPlan = 0;
+            let planName = 'FREE';
+            if (sites <= 1) {
+                wpmaPlan = 0;
+                planName = 'FREE';
+            } else if (sites <= 3) {
+                wpmaPlan = 49;
+                planName = 'PRO';
+            } else {
+                wpmaPlan = 499;
+                planName = 'AGENCY';
+            }
+            
+            const remainingHours = sites * hours * 0.05;
+            const remainingCost = remainingHours * rate;
+            const totalWpmaCost = wpmaPlan + remainingCost;
+            
+            const savings = currentCost - totalWpmaCost;
+            const yearlyGains = savings * 12;
+            
+            currentCostEl.textContent = `${currentCost.toLocaleString('de-DE')}€`;
+            currentBreakdownEl.textContent = `${sites} Sites × ${hours}h × ${rate}€`;
+            
+            wpmaResultEl.textContent = `${Math.round(totalWpmaCost).toLocaleString('de-DE')}€`;
+            wpmaBreakdownEl.textContent = `${planName} Plan (${wpmaPlan}€) + ${remainingHours.toFixed(2)}h Arbeit`;
+            
+            savingsEl.textContent = `${Math.round(savings).toLocaleString('de-DE')}€/Monat`;
+            yearlyGainsEl.textContent = `= ${Math.round(yearlyGains).toLocaleString('de-DE')}€/Jahr`;
+        }
+        
+        sitesSlider.addEventListener('input', (e) => {
+            sitesInput.value = e.target.value;
+            calculateROI();
+        });
+        
+        sitesInput.addEventListener('input', (e) => {
+            const value = Math.min(100, Math.max(1, e.target.value));
+            sitesSlider.value = value;
+            calculateROI();
+        });
+        
+        calculateROI();
+        
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = themeToggle.querySelector('.theme-icon');
+        const html = document.documentElement;
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        html.setAttribute('data-theme', savedTheme);
+        themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        });
+    </script>
 </body>
 </html>

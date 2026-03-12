@@ -136,9 +136,9 @@ class SecurityService {
             if (!scanResult.success) return scanResult;
 
             const scan = scanResult.data;
-            const scanData = typeof scan.scan_results === 'string' 
-                ? JSON.parse(scan.scan_results) 
-                : scan.scan_results;
+            const scanData = typeof scan.scanResults === 'string'
+                ? JSON.parse(scan.scanResults)
+                : (scan.scanResults || {});
 
             const vulnerabilities = [];
 

@@ -88,8 +88,11 @@ Hinweis: Für detailliertere KI-Analysen konfigurieren Sie bitte einen API-Key (
 
     async generateSecurityRecommendations(siteData) {
         try {
+            if (!this.openai) {
+                return { success: false, error: 'Kein AI-API-Key konfiguriert' };
+            }
             const prompt = this.buildSecurityPrompt(siteData);
-            
+
             const response = await this.openai.chat.completions.create({
                 model: "gpt-4",
                 messages: [
@@ -129,8 +132,11 @@ Hinweis: Für detailliertere KI-Analysen konfigurieren Sie bitte einen API-Key (
 
     async analyzePerformanceMetrics(metrics) {
         try {
+            if (!this.openai) {
+                return { success: false, error: 'Kein AI-API-Key konfiguriert' };
+            }
             const prompt = this.buildPerformancePrompt(metrics);
-            
+
             const response = await this.openai.chat.completions.create({
                 model: "gpt-4",
                 messages: [
@@ -167,8 +173,11 @@ Hinweis: Für detailliertere KI-Analysen konfigurieren Sie bitte einen API-Key (
 
     async predictThreats(securityData) {
         try {
+            if (!this.openai) {
+                return { success: false, error: 'Kein AI-API-Key konfiguriert' };
+            }
             const prompt = this.buildThreatPredictionPrompt(securityData);
-            
+
             const response = await this.openai.chat.completions.create({
                 model: "gpt-4",
                 messages: [
@@ -205,8 +214,11 @@ Hinweis: Für detailliertere KI-Analysen konfigurieren Sie bitte einen API-Key (
 
     async generateAutomatedResponse(incident) {
         try {
+            if (!this.openai) {
+                return { success: false, error: 'Kein AI-API-Key konfiguriert' };
+            }
             const prompt = this.buildIncidentResponsePrompt(incident);
-            
+
             const response = await this.openai.chat.completions.create({
                 model: "gpt-4",
                 messages: [
@@ -482,47 +494,53 @@ Analysiere die bereitgestellten Daten einer WordPress-Site und erstelle einen um
 Sei spezifisch, priorisiere nach Dringlichkeit und gib konkrete Handlungsanweisungen.
 Antworte auf Deutsch in strukturierter Form.`;
 
+            const d = siteData.data;
             const prompt = `
 # WordPress Site Vollanalyse
 
-## Site-Informationen
-- Domain: ${siteData.data.domain}
-- WordPress: ${siteData.data.wordpress_version || 'Unbekannt'}
-- PHP: ${siteData.data.php_version || 'Unbekannt'}
-- Status: ${siteData.data.status}
+## Site
+- Domain: ${d.domain} (${d.site_url})
+- WordPress: ${d.wordpress_version || 'Unbekannt'}
+- PHP: ${d.php_version || 'Unbekannt'}
+- Health Score: ${d.health_score || 0}/100
+- Security Score: ${d.security_score || 0}/100
+- SSL: ${d.ssl_enabled ? 'Aktiv' : 'FEHLT'}
 
-## Sicherheitsstatus
-${JSON.stringify(siteData.data.security || {}, null, 2)}
+## Plugins
+- Gesamt: ${d.plugins_total}, Aktiv: ${d.plugins_active}
+- Updates ausstehend: ${d.plugins_updates}
+${d.plugin_updates_detail?.length > 0 ? '- Update-Details:\n' + d.plugin_updates_detail.map(u => '  • ' + u).join('\n') : ''}
 
-## Performance-Metriken
-${JSON.stringify(siteData.data.performance || {}, null, 2)}
+## Theme
+- Aktiv: ${d.active_theme}
 
-## Plugins & Themes
-- Aktive Plugins: ${siteData.data.plugins_count || 0}
-- Theme: ${siteData.data.theme || 'Unbekannt'}
+## Sicherheitsprobleme
+${d.security_issues?.length > 0 ? d.security_issues.map(i => `- [${i.severity || 'info'}] ${i.title || i.message || i}`).join('\n') : '- Keine bekannten Probleme'}
 
-## Letzte Scans
-- Security: ${siteData.data.last_security_scan || 'Nie'}
-- Performance: ${siteData.data.last_performance_check || 'Nie'}
+## Performance
+${d.performance ? `- Ladezeit: ${d.performance.load_time}ms\n- DB-Größe: ${Math.round((d.performance.db_size || 0) / 1024 / 1024)}MB\n- Cache-Rate: ${d.performance.cache_ratio || 0}%` : '- Keine Messdaten'}
+
+## Inhalt
+- Beiträge: ${d.posts_count}, Seiten: ${d.pages_count}, Kommentare: ${d.comments_count}, Nutzer: ${d.users_count}
 
 ---
 
-Erstelle eine Analyse mit folgender Struktur:
+Erstelle eine präzise Analyse auf Deutsch. Beziehe dich NUR auf die obigen echten Daten. Keine Spekulationen.
 
 ## 🚨 KRITISCH (Sofort handeln)
-[Liste kritischer Probleme mit konkreten Lösungen]
+[Nur wenn wirklich kritische Probleme vorhanden — konkrete Lösungsschritte]
 
 ## ⚠️ WICHTIG (Diese Woche)
-[Wichtige Probleme die bald gelöst werden sollten]
+[Wichtige Aufgaben mit Begründung]
 
-## 💡 EMPFEHLUNGEN (Bei Gelegenheit)
+## 💡 EMPFEHLUNGEN
 [Optimierungen und Best Practices]
 
-## 🤖 AUTOMATISCHE AKTIONEN
-[Was kann automatisch behoben werden? Liste mit: Aktion, Risiko, Empfehlung]
+## 🤖 AUTOMATISIERBAR
+[Was kann WPMA.io automatisch erledigen? z.B. Plugin-Updates, Backup, Security-Scan]
 
-## 📊 ZUSAMMENFASSUNG
-[Gesamtbewertung: Score 0-100, Top 3 Prioritäten]
+## 📊 FAZIT
+[2-3 Sätze Gesamtbewertung mit konkreten Top-3-Prioritäten]
 `;
 
             const analysis = await this.analyze(prompt, systemPrompt, 2000);
@@ -652,6 +670,54 @@ Für jedes erkannte Problem:
     }
 
     /**
+     * Analysiert einen Fehler und gibt strukturierte Diagnose zurück.
+     * Wird von selfHealingService verwendet.
+     */
+    async analyzeError(siteId, error, context = {}, logs = []) {
+        try {
+            const systemPrompt = `Du bist ein WordPress-Diagnose-Experte. Analysiere Fehler und gib strukturierte Diagnosen zurück.`;
+            const prompt = `
+# WordPress-Fehler analysieren
+
+Site-ID: ${siteId}
+Fehler: ${error}
+Kontext: ${JSON.stringify(context, null, 2)}
+Logs: ${Array.isArray(logs) ? logs.slice(-10).join('\n') : String(logs)}
+
+Analysiere den Fehler und antworte als JSON:
+{
+    "error_type": "plugin|theme|core|database|server|unknown",
+    "severity": "critical|high|medium|low",
+    "confidence": 0.0-1.0,
+    "explanation": "...",
+    "root_cause": "...",
+    "recommended_fixes": ["..."]
+}`;
+
+            const response = await this.analyze(prompt, systemPrompt, 800);
+
+            let data;
+            try {
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                data = jsonMatch ? JSON.parse(jsonMatch[0]) : {
+                    error_type: 'unknown', severity: 'medium', confidence: 0.5,
+                    explanation: response, root_cause: error, recommended_fixes: []
+                };
+            } catch (e) {
+                data = {
+                    error_type: 'unknown', severity: 'medium', confidence: 0.5,
+                    explanation: response, root_cause: error, recommended_fixes: []
+                };
+            }
+
+            return { success: true, data };
+        } catch (error) {
+            console.error('analyzeError failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
      * Automatische Problemlösung - generiert und führt Lösungen aus
      */
     async generateAutoFix(siteId, problem) {
@@ -701,57 +767,138 @@ Output als JSON:
     }
 
     /**
-     * KI-Chat für Support-Anfragen
+     * Universal Chat Assistant - funktioniert mit oder ohne siteId
      */
-    async chat(siteId, userMessage, conversationHistory = []) {
+    async chatWithAssistant({ userId, siteId, message, conversationHistory = [] }) {
         try {
-            const siteData = await this.collectSiteData(siteId);
-            
-            const systemPrompt = `Du bist ein hilfreicher WordPress-Support-Assistent für WPMA.io.
-Du hast Zugriff auf die Daten der WordPress-Site des Benutzers.
-Antworte freundlich, präzise und auf Deutsch.
-
+            let siteContext = '';
+            if (siteId) {
+                const siteData = await this.collectSiteData(siteId);
+                siteContext = `
 Site-Kontext:
 - Domain: ${siteData.data?.domain || 'Unbekannt'}
 - WordPress: ${siteData.data?.wordpress_version || 'Unbekannt'}
-- Status: ${siteData.data?.status || 'Unbekannt'}`;
+- Status: ${siteData.data?.status || 'Unbekannt'}
+- Health Score: ${siteData.data?.health_score || 'N/A'}`;
+            } else {
+                siteContext = 'Kontext: Allgemeine Dashboard-Übersicht';
+            }
+
+            const systemPrompt = `Du bist ein hilfreicher KI-Assistent für WPMA.io, eine WordPress-Management-Plattform.
+Du hilfst Benutzern bei:
+- WordPress-Site-Verwaltung
+- Sicherheits- und Performance-Analysen
+- Backup- und Update-Management
+- Troubleshooting und Empfehlungen
+
+${siteContext}
+
+Antworte immer auf Deutsch, freundlich und präzise. Wenn du eine Aktion vorschlägst, erkläre warum.`;
 
             const messages = [
-                ...conversationHistory.map(m => ({
+                ...conversationHistory.slice(-5).map(m => ({
                     role: m.role,
                     content: m.content
                 })),
-                { role: 'user', content: userMessage }
+                { role: 'user', content: message }
             ];
 
             let response;
+            let suggestions = [];
+
             if (this.preferredModel === 'claude' && this.anthropic) {
                 const result = await this.anthropic.messages.create({
                     model: 'claude-3-haiku-20240307',
-                    max_tokens: 1000,
+                    max_tokens: 800,
                     system: systemPrompt,
                     messages: messages
                 });
                 response = result.content[0].text;
             } else if (this.openai) {
                 const result = await this.openai.chat.completions.create({
-                    model: 'gpt-4-turbo-preview',
+                    model: 'gpt-3.5-turbo',
                     messages: [
                         { role: 'system', content: systemPrompt },
                         ...messages
                     ],
-                    max_tokens: 1000
+                    max_tokens: 800,
+                    temperature: 0.7
                 });
                 response = result.choices[0].message.content;
             } else {
-                response = 'KI-Chat ist nicht konfiguriert. Bitte konfigurieren Sie einen API-Key.';
+                response = this.generateSmartFallbackResponse(message, siteId);
+                suggestions = this.getContextualSuggestions(message);
             }
 
-            return { success: true, data: { response } };
+            if (!suggestions.length) {
+                suggestions = this.getContextualSuggestions(message);
+            }
+
+            return {
+                success: true,
+                response,
+                suggestions,
+                timestamp: new Date()
+            };
         } catch (error) {
-            console.error('AI Chat error:', error);
-            return { success: false, error: error.message };
+            console.error('Chat with assistant error:', error);
+            return {
+                success: true,
+                response: this.generateSmartFallbackResponse(message, siteId),
+                suggestions: this.getContextualSuggestions(message),
+                timestamp: new Date()
+            };
         }
+    }
+
+    generateSmartFallbackResponse(message, siteId) {
+        const lowerMessage = message.toLowerCase();
+        
+        if (lowerMessage.includes('backup')) {
+            return 'Backups sind essentiell für deine WordPress-Sites. Ich kann dir helfen, automatische Backups einzurichten oder bestehende zu verwalten. Möchtest du ein Backup erstellen?';
+        }
+        if (lowerMessage.includes('update') || lowerMessage.includes('aktualisier')) {
+            return 'Updates sind wichtig für Sicherheit und Performance. Ich empfehle, vor jedem Update ein Backup zu erstellen. Welche Sites möchtest du aktualisieren?';
+        }
+        if (lowerMessage.includes('sicherheit') || lowerMessage.includes('security')) {
+            return 'Sicherheit ist entscheidend. Ich kann für dich Security-Scans durchführen und Schwachstellen identifizieren. Soll ich einen Scan starten?';
+        }
+        if (lowerMessage.includes('performance') || lowerMessage.includes('langsam')) {
+            return 'Performance-Probleme können viele Ursachen haben. Ich analysiere gerne deine Site-Performance und gebe konkrete Optimierungs-Tipps. Welche Site möchtest du optimieren?';
+        }
+        if (lowerMessage.includes('kritisch') || lowerMessage.includes('problem')) {
+            return 'Ich verstehe, dass du nach kritischen Problemen suchst. Lass mich deine Sites analysieren und priorisierte Handlungsempfehlungen geben.';
+        }
+        
+        return `Ich verstehe deine Anfrage zu "${message}". Als KI-Assistent kann ich dir bei WordPress-Management helfen. Möchtest du mehr über deine Sites erfahren oder eine spezifische Aktion durchführen?`;
+    }
+
+    getContextualSuggestions(message) {
+        const lowerMessage = message.toLowerCase();
+        
+        if (lowerMessage.includes('backup')) {
+            return [
+                'Backup jetzt erstellen',
+                'Alle Backups anzeigen',
+                'Automatische Backups einrichten',
+                'Backup wiederherstellen'
+            ];
+        }
+        if (lowerMessage.includes('update')) {
+            return [
+                'Alle verfügbaren Updates zeigen',
+                'Kritische Updates installieren',
+                'Update-Zeitplan erstellen',
+                'WordPress Core aktualisieren'
+            ];
+        }
+        
+        return [
+            'Zeige mir kritische Sites',
+            'Backup alle Sites erstellen',
+            'Welche Updates stehen an?',
+            'Performance-Probleme finden'
+        ];
     }
 
     // ==========================================
@@ -760,30 +907,66 @@ Site-Kontext:
 
     async collectSiteData(siteId) {
         try {
-            const siteResult = await query(
-                `SELECT s.*, 
-                    (SELECT data FROM security_scans WHERE site_id = s.id ORDER BY created_at DESC LIMIT 1) as last_security,
-                    (SELECT data FROM performance_metrics WHERE site_id = s.id ORDER BY created_at DESC LIMIT 1) as last_performance
-                 FROM sites s WHERE s.id = $1`,
-                [siteId]
-            );
+            const [siteResult, pluginsResult, themesResult, statsResult, securityResult, performanceResult] = await Promise.all([
+                query(`SELECT * FROM sites WHERE id = $1`, [siteId]),
+                query(`SELECT name, slug, version, active, update_available, new_version, is_premium FROM site_plugins WHERE site_id = $1`, [siteId]),
+                query(`SELECT name, slug, version, active, update_available FROM site_themes WHERE site_id = $1`, [siteId]),
+                query(`SELECT * FROM site_stats WHERE site_id = $1 LIMIT 1`, [siteId]),
+                query(`SELECT scan_results, threats_found, created_at FROM security_scans WHERE site_id = $1 ORDER BY created_at DESC LIMIT 1`, [siteId]),
+                query(`SELECT page_load_time, database_size, cache_hit_ratio, created_at FROM performance_metrics WHERE site_id = $1 ORDER BY created_at DESC LIMIT 1`, [siteId]),
+            ]);
 
             if (siteResult.rows.length === 0) {
                 return { success: false, error: 'Site nicht gefunden' };
             }
 
             const site = siteResult.rows[0];
+            const plugins = pluginsResult.rows;
+            const themes = themesResult.rows;
+            const stats = statsResult.rows[0] || {};
+            const security = securityResult.rows[0] || null;
+            const performance = performanceResult.rows[0] || null;
+
+            const pluginUpdates = plugins.filter(p => p.update_available);
+            const activePlugins = plugins.filter(p => p.active);
+            const activeTheme = themes.find(t => t.active);
+
+            let securityIssues = [];
+            try {
+                const raw = typeof site.security_issues === 'string'
+                    ? JSON.parse(site.security_issues)
+                    : (site.security_issues || []);
+                securityIssues = raw;
+            } catch { securityIssues = []; }
+
             return {
                 success: true,
                 data: {
                     domain: site.domain,
+                    site_url: site.site_url,
                     wordpress_version: site.wordpress_version,
                     php_version: site.php_version,
                     status: site.status,
                     health_score: site.health_score,
-                    security: site.last_security ? JSON.parse(site.last_security) : null,
-                    performance: site.last_performance ? JSON.parse(site.last_performance) : null,
-                    last_check: site.last_check
+                    security_score: site.security_score,
+                    ssl_enabled: site.site_url?.startsWith('https://') || site.ssl_enabled,
+                    security_issues: securityIssues,
+                    last_check: site.last_check,
+                    plugins_total: plugins.length,
+                    plugins_active: activePlugins.length,
+                    plugins_updates: pluginUpdates.length,
+                    plugin_updates_detail: pluginUpdates.map(p => `${p.name} (${p.version} → ${p.new_version || 'neu'})`),
+                    active_theme: activeTheme?.name || 'Unbekannt',
+                    posts_count: stats.posts_count || 0,
+                    pages_count: stats.pages_count || 0,
+                    comments_count: stats.comments_count || 0,
+                    users_count: stats.users_count || 0,
+                    security: security ? { threats: security.threats_found, results: security.scan_results } : null,
+                    performance: performance ? {
+                        load_time: performance.page_load_time,
+                        db_size: performance.database_size,
+                        cache_ratio: performance.cache_hit_ratio
+                    } : null,
                 }
             };
         } catch (error) {

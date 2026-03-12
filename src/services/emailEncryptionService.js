@@ -41,16 +41,16 @@ class EmailEncryptionService {
   }
 
   // Email verschlüsseln
-  encryptEmail(emailData, userId) {
+  async encryptEmail(emailData, userId) {
     try {
-      const userSalt = this.getUserSalt(userId);
+      const userSalt = await this.getUserSalt(userId);
       const masterKey = this.generateMasterKey(userSalt);
       
       // Zufälligen IV generieren
       const iv = crypto.randomBytes(this.ivLength);
       
       // Cipher erstellen
-      const cipher = crypto.createCipher(this.algorithm, masterKey, { iv });
+      const cipher = crypto.createCipheriv(this.algorithm, masterKey, iv);
       
       // Email-Daten serialisieren
       const emailJson = JSON.stringify({
@@ -84,9 +84,9 @@ class EmailEncryptionService {
   }
 
   // Email entschlüsseln
-  decryptEmail(encryptedEmail, userId) {
+  async decryptEmail(encryptedEmail, userId) {
     try {
-      const userSalt = this.getUserSalt(userId);
+      const userSalt = await this.getUserSalt(userId);
       const masterKey = this.generateMasterKey(userSalt);
       
       // IV und Auth-Tag aus Hex konvertieren
@@ -94,7 +94,7 @@ class EmailEncryptionService {
       const authTag = Buffer.from(encryptedEmail.auth_tag, 'hex');
       
       // Decipher erstellen
-      const decipher = crypto.createDecipher(this.algorithm, masterKey, { iv });
+      const decipher = crypto.createDecipheriv(this.algorithm, masterKey, iv);
       decipher.setAuthTag(authTag);
       
       // Entschlüsseln
@@ -134,7 +134,7 @@ class EmailEncryptionService {
   // Email sicher speichern
   async storeEncryptedEmail(userId, emailData, context = 'notification') {
     try {
-      const encryptedEmail = this.encryptEmail(emailData, userId);
+      const encryptedEmail = await this.encryptEmail(emailData, userId);
       
       const query = `
         INSERT INTO encrypted_emails (
@@ -189,7 +189,7 @@ class EmailEncryptionService {
       const decryptedEmails = [];
       for (const row of result.rows) {
         try {
-          const decryptedEmail = this.decryptEmail({
+          const decryptedEmail = await this.decryptEmail({
             encrypted_data: row.encrypted_data,
             iv: row.iv,
             auth_tag: row.auth_tag
@@ -255,7 +255,7 @@ class EmailEncryptionService {
       );
       
       const recoveryIv = crypto.randomBytes(this.ivLength);
-      const recoveryCipher = crypto.createCipher(this.algorithm, recoveryKey, { iv: recoveryIv });
+      const recoveryCipher = crypto.createCipheriv(this.algorithm, recoveryKey, recoveryIv);
       
       let encryptedRecovery = recoveryCipher.update(JSON.stringify(recoveryData), 'utf8', 'hex');
       encryptedRecovery += recoveryCipher.final('hex');
@@ -326,7 +326,7 @@ class EmailEncryptionService {
       const recoveryIv = Buffer.from(exportData.iv, 'hex');
       const recoveryAuthTag = Buffer.from(exportData.auth_tag, 'hex');
       
-      const recoveryDecipher = crypto.createDecipher(this.algorithm, recoveryKey, { iv: recoveryIv });
+      const recoveryDecipher = crypto.createDecipheriv(this.algorithm, recoveryKey, recoveryIv);
       recoveryDecipher.setAuthTag(recoveryAuthTag);
       
       let decryptedRecovery = recoveryDecipher.update(exportData.encrypted_data, 'hex', 'utf8');

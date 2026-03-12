@@ -13,11 +13,17 @@ const siteIdParams = Joi.object({ siteId: idSchema });
 router.post('/setup-token/exchange', sanitize, sitesController.exchangeSetupToken);
 router.get('/plugin/download/:token', sitesController.downloadPlugin);
 
+// WordPress Plugin health update (controller validates API key directly)
+router.put('/:siteId/health',
+    validate(siteIdParams, 'params'),
+    sitesController.updateSiteHealth
+);
+
 // All other routes require authentication
 router.use(authenticateToken);
 
 // Fetch site metadata from URL (accepts domain with or without protocol)
-router.post('/fetch-metadata', 
+router.post('/fetch-metadata',
     sanitize,
     validate(Joi.object({
         url: Joi.string().min(3).max(255).required()
@@ -28,7 +34,7 @@ router.post('/fetch-metadata',
 );
 
 // Site management
-router.get('/', 
+router.get('/',
     validate(paginationSchema, 'query'),
     sitesController.getSites
 );
@@ -44,19 +50,14 @@ router.get('/:siteId',
     sitesController.getSite
 );
 
-router.put('/:siteId/health',
-    validateMultiple({
-        params: siteIdParams,
-        body: Joi.object({
-            health_score: Joi.number().min(0).max(100).required()
-        })
-    }),
-    sitesController.updateSiteHealth
-);
-
 router.post('/:siteId/health-check',
     validate(siteIdParams, 'params'),
     sitesController.runHealthCheck
+);
+
+router.get('/:siteId/screenshot',
+    validate(siteIdParams, 'params'),
+    sitesController.getScreenshot
 );
 
 router.delete('/:siteId',

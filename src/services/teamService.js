@@ -238,7 +238,7 @@ class TeamService {
                     role: row.role,
                     roleName: ROLES[row.role]?.name || row.role,
                     status: row.status,
-                    assignedSites: row.assigned_sites ? JSON.parse(row.assigned_sites) : [],
+                    assignedSites: row.assigned_sites ? (() => { try { return JSON.parse(row.assigned_sites); } catch { return []; } })() : [],
                     joinedAt: row.created_at
                 }))
             };
@@ -392,8 +392,8 @@ class TeamService {
             }
 
             // Andere Rollen: Prüfe assigned_sites
-            const assignedSites = member.assigned_sites 
-                ? JSON.parse(member.assigned_sites) 
+            const assignedSites = member.assigned_sites
+                ? (() => { try { return JSON.parse(member.assigned_sites); } catch { return []; } })()
                 : [];
 
             if (assignedSites.length === 0 || assignedSites.includes(siteId)) {

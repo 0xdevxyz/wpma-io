@@ -4,36 +4,40 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --bg:          255 255 255;
+    --bg-subtle:   248 250 252;
+    --bg-muted:    241 245 249;
+    --border:      226 232 240;
+    --border-subtle: 241 245 249;
+    --text:        15 23 42;
+    --text-muted:  100 116 139;
+    --text-faint:  148 163 184;
+    --primary:     59 130 246;
+    --primary-fg:  255 255 255;
     --radius: 0.5rem;
   }
-}
 
-@layer base {
-  * {
-    border-color: var(--border);
+  .dark {
+    --bg:          10 10 15;
+    --bg-subtle:   17 17 26;
+    --bg-muted:    24 24 36;
+    --border:      255 255 255 / 0.07;
+    --border-subtle: 255 255 255 / 0.04;
+    --text:        241 245 249;
+    --text-muted:  100 116 139;
+    --text-faint:  51 65 85;
+    --primary:     59 130 246;
+    --primary-fg:  255 255 255;
   }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+
   body {
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: rgb(var(--bg));
+    color: rgb(var(--text));
     font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }

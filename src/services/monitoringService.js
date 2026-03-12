@@ -102,9 +102,10 @@ class MonitoringService {
                 }
             };
         } catch (error) {
+            console.error('Get uptime stats error:', error);
             return {
-                success: true,
-                data: { uptime_percentage: 100, total_checks: 0, avg_response_time: null }
+                success: false,
+                error: error.message
             };
         }
     }

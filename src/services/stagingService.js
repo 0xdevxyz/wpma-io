@@ -62,8 +62,10 @@ class StagingService {
 
             const stagingId = stagingResult.rows[0].id;
 
-            // Starte asynchronen Staging-Erstellungsprozess
-            this.processCreateStaging(stagingId, site, options);
+            // Starte asynchronen Staging-Erstellungsprozess (fire-and-forget mit Fehlerbehandlung)
+            this.processCreateStaging(stagingId, site, options).catch(err =>
+                console.error(`processCreateStaging failed for stagingId=${stagingId}:`, err)
+            );
 
             return {
                 success: true,
@@ -100,37 +102,95 @@ class StagingService {
                 backupId = backupResult.backupId;
             }
 
-            // 2. Staging-Datenbank erstellen (simuliert)
-            await this.updateStagingStatus(stagingId, 'creating_database', 'Erstelle Staging-Datenbank...');
-            await this.delay(2000); // Simulierte Zeit
+            // 2. Trigger Staging-Erstellung auf WordPress-Site
+            await this.updateStagingStatus(stagingId, 'creating_staging', 'Erstelle Staging-Umgebung auf dem Server...');
+            
+            const stagingResult = await this.triggerRemoteStaging(site, stagingId, backupId);
+            
+            if (!stagingResult.success) {
+                await this.updateStagingStatus(stagingId, 'failed', `Staging-Erstellung fehlgeschlagen: ${stagingResult.error}`);
+                return;
+            }
 
-            // 3. Dateien kopieren (simuliert)
-            await this.updateStagingStatus(stagingId, 'copying_files', 'Kopiere Dateien...');
-            await this.delay(3000);
+            // 3. Verifiziere Staging-Site
+            await this.updateStagingStatus(stagingId, 'verifying', 'Verifiziere Staging-Umgebung...');
+            const verified = await this.verifyStagingSite(stagingResult.stagingUrl);
+            
+            if (!verified) {
+                await this.updateStagingStatus(stagingId, 'failed', 'Staging-Site ist nicht erreichbar');
+                return;
+            }
 
-            // 4. URLs in Datenbank ersetzen (simuliert)
-            await this.updateStagingStatus(stagingId, 'updating_urls', 'Aktualisiere URLs in der Datenbank...');
-            await this.delay(1000);
-
-            // 5. Cache leeren und finalisieren
-            await this.updateStagingStatus(stagingId, 'finalizing', 'Finalisiere Staging-Umgebung...');
-            await this.delay(500);
-
-            // 6. Fertig!
+            // 4. Fertig!
             await query(
                 `UPDATE staging_environments 
                  SET status = 'active', 
                      created_from_backup = $1,
                      activated_at = NOW(),
+                     staging_url = $2,
                      progress_message = 'Staging-Umgebung ist bereit!'
-                 WHERE id = $2`,
-                [backupId, stagingId]
+                 WHERE id = $3`,
+                [backupId, stagingResult.stagingUrl, stagingId]
             );
 
-            console.log(`Staging ${stagingId} created successfully`);
+            console.log(`Staging ${stagingId} created successfully at ${stagingResult.stagingUrl}`);
         } catch (error) {
             console.error('Process create staging error:', error);
             await this.updateStagingStatus(stagingId, 'failed', `Fehler: ${error.message}`);
+        }
+    }
+
+    /**
+     * Triggert Staging-Erstellung auf der WordPress-Site über das Plugin
+     */
+    async triggerRemoteStaging(site, stagingId, backupId) {
+        try {
+            const pluginUrl = `${site.site_url}/wp-json/wpma/v1/staging/create`;
+            
+            const response = await fetch(pluginUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WPMA-API-Key': site.api_key,
+                    'User-Agent': 'WPMA-Platform/1.0'
+                },
+                body: JSON.stringify({
+                    staging_id: stagingId,
+                    backup_id: backupId,
+                    staging_domain: `staging-${stagingId.substring(0, 8)}.${site.domain}`
+                }),
+                timeout: 30000
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    success: true,
+                    stagingUrl: data.staging_url,
+                    stagingPath: data.staging_path
+                };
+            }
+
+            return { success: false, error: 'Plugin nicht erreichbar oder Staging-Feature nicht verfügbar' };
+        } catch (error) {
+            console.log('Remote staging trigger failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Verifiziert ob Staging-Site erreichbar ist
+     */
+    async verifyStagingSite(stagingUrl) {
+        try {
+            const response = await fetch(stagingUrl, {
+                method: 'HEAD',
+                timeout: 10000
+            });
+            return response.ok;
+        } catch (error) {
+            console.error('Staging verification failed:', error.message);
+            return false;
         }
     }
 
@@ -237,8 +297,10 @@ class StagingService {
 
             const jobId = jobResult.rows[0].id;
 
-            // Starte asynchronen Push-Prozess
-            this.processPushToLive(jobId, staging, options);
+            // Starte asynchronen Push-Prozess (fire-and-forget mit Fehlerbehandlung)
+            this.processPushToLive(jobId, staging, options).catch(err =>
+                console.error(`processPushToLive failed for jobId=${jobId}:`, err)
+            );
 
             return {
                 success: true,
@@ -442,8 +504,10 @@ class StagingService {
 
             const jobId = jobResult.rows[0].id;
 
-            // Starte asynchronen Clone-Prozess
-            this.processCloneSite(jobId, source, targetDomain, options);
+            // Starte asynchronen Clone-Prozess (fire-and-forget mit Fehlerbehandlung)
+            this.processCloneSite(jobId, source, targetDomain, options).catch(err =>
+                console.error(`processCloneSite failed for jobId=${jobId}:`, err)
+            );
 
             return {
                 success: true,
@@ -511,7 +575,7 @@ class StagingService {
                 [jobId]
             );
 
-            console.log(`Clone job ${jobId} completed successfully. New site ID: ${newSiteId}`);
+            console.log(`Clone job ${jobId} completed successfully.`);
         } catch (error) {
             console.error('Process clone error:', error);
             await this.updateCloneJobStatus(jobId, 'failed', `Fehler: ${error.message}`);

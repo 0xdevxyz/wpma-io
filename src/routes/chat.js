@@ -11,6 +11,74 @@ const PredictiveService = require('../services/predictiveService');
 
 router.use(authenticateToken);
 
+/**
+ * POST /api/v1/chat
+ * Universal Chat Endpoint - funktioniert ohne siteId
+ */
+router.post('/', async (req, res) => {
+    try {
+        const userId = req.user?.userId || req.user?.id;
+        const { message, conversationHistory, siteId, conversationId } = req.body;
+
+        if (!message || message.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Nachricht erforderlich'
+            });
+        }
+
+        // Use AIChatService for intent detection, conversation persistence, and action execution
+        let result;
+        if (siteId) {
+            result = await AIChatService.chat(userId, parseInt(siteId), message, conversationId);
+        } else {
+            // Without siteId: use aiService directly for general chat
+            const aiService = require('../services/aiService');
+            const aiResult = await aiService.chatWithAssistant({
+                userId,
+                siteId: null,
+                message,
+                conversationHistory: conversationHistory || []
+            });
+            result = {
+                success: aiResult.success !== false,
+                data: {
+                    message: aiResult.response || 'Ich habe deine Anfrage verarbeitet.',
+                    suggestions: aiResult.suggestions || [],
+                    actions: []
+                }
+            };
+        }
+
+        if (result.success) {
+            const defaultSuggestions = [
+                'Zeige mir alle Sites mit Problemen',
+                'Welche Updates sind verfügbar?',
+                'Erstelle ein Backup',
+                'Überprüfe die Sicherheit'
+            ];
+
+            res.json({
+                success: true,
+                data: {
+                    message: result.data?.message || result.data?.response || 'Ich habe deine Anfrage verarbeitet.',
+                    suggestions: result.data?.suggestions || defaultSuggestions,
+                    actions: result.data?.actions || [],
+                    conversationId: result.data?.conversationId
+                }
+            });
+        } else {
+            res.status(500).json(result);
+        }
+    } catch (error) {
+        console.error('Universal chat error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==========================================
 // CHAT ENDPOINTS
 // ==========================================

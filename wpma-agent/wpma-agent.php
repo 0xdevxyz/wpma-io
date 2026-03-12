@@ -3,7 +3,7 @@
  * Plugin Name: WPMA Agent
  * Plugin URI: https://wpma.io
  * Description: WordPress Management AI Agent für proaktive Wartung, Sicherheit und Performance-Optimierung
- * Version: 1.3.0
+ * Version: 1.4.2
  * Author: WPMA.io
  * License: GPL v2 or later
  * Text Domain: wpma-agent
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('WPMA_VERSION', '1.3.0');
+define('WPMA_VERSION', '1.4.0');
 define('WPMA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WPMA_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('WPMA_API_URL', 'https://api.wpma.io');
@@ -27,11 +27,14 @@ require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-backup.php';
 require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-performance.php';
 require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-api.php';
 require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-updates.php';
+require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-staging.php';
+require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-rollback.php';
+require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-rest-api.php';
 require_once WPMA_PLUGIN_PATH . 'admin/class-wpma-admin.php';
 
 // Initialize the plugin
 function wpma_init() {
-    global $wpma_core, $wpma_updates, $wpma_backup;
+    global $wpma_core, $wpma_updates, $wpma_backup, $wpma_staging, $wpma_rollback, $wpma_rest_api;
     
     $wpma_core = new WPMA_Core();
     $wpma_core->init();
@@ -42,6 +45,17 @@ function wpma_init() {
     // Initialize Backup module (mit REST API)
     $wpma_backup = new WPMA_Backup();
     $wpma_backup->init();
+    
+    // Initialize Staging module
+    $wpma_staging = new WPMA_Staging();
+    $wpma_staging->init();
+    
+    // Initialize Rollback module
+    $wpma_rollback = new WPMA_Rollback();
+    $wpma_rollback->init();
+    
+    // Initialize REST API endpoints
+    $wpma_rest_api = new WPMA_REST_API();
     
     // Initialize admin
     if (is_admin()) {
@@ -157,9 +171,27 @@ function wpma_try_auto_setup() {
     if (get_option('wpma_api_key')) {
         return;
     }
-    
-    // Set flag to show setup wizard
+
+    // Set flag to show setup wizard and trigger redirect
     update_option('wpma_needs_setup', true);
+    set_transient('wpma_activation_redirect', true, 30);
+}
+
+// Redirect to WPMA dashboard after activation
+add_action('admin_init', 'wpma_activation_redirect');
+function wpma_activation_redirect() {
+    if (!get_transient('wpma_activation_redirect')) {
+        return;
+    }
+    delete_transient('wpma_activation_redirect');
+
+    // Don't redirect on multisite bulk activation or AJAX
+    if (is_network_admin() || isset($_GET['activate-multi']) || wp_doing_ajax()) {
+        return;
+    }
+
+    wp_safe_redirect(admin_url('admin.php?page=wpma-dashboard'));
+    exit;
 }
 
 // Deactivation hook

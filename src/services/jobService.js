@@ -1,9 +1,11 @@
 const cron = require('node-cron');
-const { client: redis } = require('../config/redis');
+// Redis available via require('../config/redis') if needed
 const { query } = require('../config/database');
 const monitoringService = require('./monitoringService');
 const performanceService = require('./performanceService');
 const securityService = require('./securityService');
+const wpSyncService = require('./wpSyncService');
+const vulnerabilityScanJob = require('../jobs/vulnerabilityScanJob');
 
 class JobService {
     constructor() {
@@ -41,6 +43,20 @@ class JobService {
             })
         );
         
+        // WordPress data sync - every 15 minutes
+        this.jobs.push(
+            cron.schedule('*/15 * * * *', () => {
+                this.runWordPressSync();
+            })
+        );
+        
+        // Vulnerability scanning - every 6 hours
+        this.jobs.push(
+            cron.schedule(vulnerabilityScanJob.getSchedule(), () => {
+                vulnerabilityScanJob.execute();
+            })
+        );
+        
         console.log('Background jobs started successfully');
     }
     
@@ -65,7 +81,20 @@ class JobService {
     async runPerformanceChecks() {
         try {
             console.log('[Job] Running performance checks...');
-            await performanceService.cleanupOldMetrics();
+            const result = await query(
+                'SELECT id FROM sites WHERE status = $1 LIMIT 50',
+                ['active']
+            );
+
+            for (const site of result.rows) {
+                try {
+                    await performanceService.getCurrentMetrics(site.id);
+                } catch (err) {
+                    console.error(`[Job] Performance check failed for site ${site.id}:`, err.message);
+                }
+            }
+
+            console.log(`[Job] Checked performance for ${result.rows.length} sites`);
         } catch (error) {
             console.error('[Job] Performance check error:', error);
         }
@@ -97,6 +126,16 @@ class JobService {
             console.log('[Job] Cleanup completed');
         } catch (error) {
             console.error('[Job] Cleanup error:', error);
+        }
+    }
+    
+    async runWordPressSync() {
+        try {
+            console.log('[Job] Running WordPress sync...');
+            const result = await wpSyncService.syncAllSites();
+            console.log(`[Job] WordPress sync completed: ${result.data?.successful || 0} successful, ${result.data?.failed || 0} failed`);
+        } catch (error) {
+            console.error('[Job] WordPress sync error:', error);
         }
     }
     
