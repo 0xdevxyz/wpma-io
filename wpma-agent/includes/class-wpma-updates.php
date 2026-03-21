@@ -6,9 +6,8 @@
  * @since 1.1.0
  */
 
-if (!defined('ABSPATH')) {
-    exit;
-}
+if (!defined('ABSPATH')) exit;
+if (class_exists('WPMA_Updates')) return;
 
 class WPMA_Updates {
     

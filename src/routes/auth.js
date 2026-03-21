@@ -24,6 +24,8 @@ router.post('/reset-password', sanitize, authController.resetPassword);
 
 // Protected routes
 router.get('/me', authenticateToken, authController.me);
+router.put('/profile', authenticateToken, sanitize, authController.updateProfile);
+router.post('/change-password', authenticateToken, sanitize, authController.changePassword);
 router.post('/refresh', authenticateToken, authController.refreshToken);
 router.post('/logout', authenticateToken, authController.logout);
 

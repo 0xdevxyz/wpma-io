@@ -219,12 +219,86 @@ class SecurityService {
             }
 
             const site = siteResult.rows[0];
-            const sslCheck = await this.checkSSL(site.site_url);
+            const baseUrl = site.site_url || `https://${site.domain}`;
+
+            // Run all checks in parallel
+            const [sslCheck, headerCheck, exposureCheck, xmlrpcCheck] = await Promise.all([
+                this.checkSSL(baseUrl),
+                this.checkSecurityHeaders(baseUrl),
+                this.checkExposedFiles(baseUrl),
+                this.checkXmlRpc(baseUrl),
+            ]);
+
+            const vulnerabilities = [];
+
+            if (!sslCheck.enabled) {
+                vulnerabilities.push({
+                    severity: 'high', category: 'ssl',
+                    title: 'Kein SSL/HTTPS',
+                    description: 'Die Website überträgt Daten unverschlüsselt.',
+                    recommendation: 'SSL-Zertifikat installieren (z.B. Let\'s Encrypt).'
+                });
+            }
+
+            // Security header issues
+            const REQUIRED_HEADERS = {
+                'strict-transport-security': { severity: 'medium', title: 'HSTS fehlt', recommendation: 'Header: Strict-Transport-Security: max-age=31536000; includeSubDomains' },
+                'x-content-type-options': { severity: 'low', title: 'X-Content-Type-Options fehlt', recommendation: 'Header setzen: X-Content-Type-Options: nosniff' },
+                'x-frame-options': { severity: 'medium', title: 'X-Frame-Options fehlt (Clickjacking)', recommendation: 'Header setzen: X-Frame-Options: SAMEORIGIN' },
+                'x-xss-protection': { severity: 'low', title: 'X-XSS-Protection fehlt', recommendation: 'Header setzen: X-XSS-Protection: 1; mode=block' },
+                'content-security-policy': { severity: 'low', title: 'Content-Security-Policy fehlt', recommendation: 'CSP-Header konfigurieren.' },
+                'referrer-policy': { severity: 'info', title: 'Referrer-Policy fehlt', recommendation: 'Header setzen: Referrer-Policy: no-referrer-when-downgrade' },
+            };
+            for (const [header, meta] of Object.entries(REQUIRED_HEADERS)) {
+                if (!headerCheck.headers[header]) {
+                    vulnerabilities.push({
+                        severity: meta.severity, category: 'headers',
+                        title: meta.title,
+                        description: `Der HTTP-Header "${header}" ist nicht gesetzt.`,
+                        recommendation: meta.recommendation
+                    });
+                }
+            }
+
+            if (exposureCheck.readmeExposed) {
+                vulnerabilities.push({
+                    severity: 'low', category: 'exposure',
+                    title: 'readme.html öffentlich zugänglich',
+                    description: 'Die readme.html verrät die WordPress-Version.',
+                    recommendation: 'readme.html und license.txt löschen oder über .htaccess sperren.'
+                });
+            }
+            if (exposureCheck.licenseExposed) {
+                vulnerabilities.push({
+                    severity: 'info', category: 'exposure',
+                    title: 'license.txt öffentlich zugänglich',
+                    description: 'Gibt Informationen über die WP-Installation preis.',
+                    recommendation: 'license.txt über .htaccess sperren.'
+                });
+            }
+
+            if (xmlrpcCheck.accessible) {
+                vulnerabilities.push({
+                    severity: 'medium', category: 'configuration',
+                    title: 'XML-RPC aktiviert',
+                    description: 'xmlrpc.php ist öffentlich erreichbar und kann für Brute-Force-Angriffe missbraucht werden.',
+                    recommendation: 'XML-RPC deaktivieren sofern nicht benötigt: add_filter("xmlrpc_enabled", "__return_false").'
+                });
+            }
+
+            const score = this.calculateScoreFromVulns({ vulnerabilities, ssl_enabled: sslCheck.enabled });
 
             const scanData = {
-                scan_type: 'automated',
+                scan_type: 'deep',
                 ssl_enabled: sslCheck.enabled,
                 ssl_valid: sslCheck.valid,
+                security_score: score,
+                security_headers: headerCheck.headers,
+                vulnerabilities,
+                xmlrpc_accessible: xmlrpcCheck.accessible,
+                readme_exposed: exposureCheck.readmeExposed,
+                license_exposed: exposureCheck.licenseExposed,
+                wp_version_status: site.wordpress_version ? 'detected' : 'unknown',
                 scan_duration: Date.now() - startTime
             };
 
@@ -235,6 +309,39 @@ class SecurityService {
         }
     }
 
+    async checkSecurityHeaders(siteUrl) {
+        try {
+            const resp = await axios.head(siteUrl, { timeout: 8000, validateStatus: () => true });
+            const h = {};
+            const TRACKED = ['strict-transport-security','x-content-type-options','x-frame-options','x-xss-protection','content-security-policy','referrer-policy'];
+            for (const name of TRACKED) {
+                h[name] = resp.headers[name] || null;
+            }
+            return { headers: h };
+        } catch {
+            return { headers: {} };
+        }
+    }
+
+    async checkExposedFiles(baseUrl) {
+        const base = baseUrl.replace(/\/$/, '');
+        const [readme, license] = await Promise.all([
+            axios.head(`${base}/readme.html`, { timeout: 5000, validateStatus: () => true }).then(r => r.status === 200).catch(() => false),
+            axios.head(`${base}/license.txt`, { timeout: 5000, validateStatus: () => true }).then(r => r.status === 200).catch(() => false),
+        ]);
+        return { readmeExposed: readme, licenseExposed: license };
+    }
+
+    async checkXmlRpc(baseUrl) {
+        const base = baseUrl.replace(/\/$/, '');
+        try {
+            const resp = await axios.get(`${base}/xmlrpc.php`, { timeout: 5000, validateStatus: () => true });
+            return { accessible: resp.status < 404 };
+        } catch {
+            return { accessible: false };
+        }
+    }
+
     async checkSSL(siteUrl) {
         try {
             const url = new URL(siteUrl);
@@ -242,6 +349,19 @@ class SecurityService {
         } catch (error) {
             return { enabled: false, valid: false };
         }
+    }
+
+    calculateScoreFromVulns({ vulnerabilities = [], ssl_enabled = true }) {
+        let score = 100;
+        if (!ssl_enabled) score -= 25;
+        for (const v of vulnerabilities) {
+            if (v.severity === 'critical') score -= 20;
+            else if (v.severity === 'high') score -= 15;
+            else if (v.severity === 'medium') score -= 8;
+            else if (v.severity === 'low') score -= 3;
+            else if (v.severity === 'info') score -= 1;
+        }
+        return Math.max(0, score);
     }
 
     async cleanupOldScans() {

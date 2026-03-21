@@ -49,6 +49,14 @@ const chatRoutes = require('./routes/chat');
 const stagingRoutes = require('./routes/staging');
 const incrementalBackupRoutes = require('./routes/incrementalBackup');
 const paymentRoutes = require('./routes/payment');
+const contentRoutes = require('./routes/content');
+const syncRoutes = require('./routes/sync');
+const agentRoutes = require('./routes/agent');
+const revenueRoutes = require('./routes/revenue');
+const onboardingRoutes = require('./routes/onboarding');
+const clientPortalRoutes = require('./routes/clientPortal');
+const linksRoutes = require('./routes/links');
+const sslRoutes = require('./routes/ssl');
 
 // Import Middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -67,8 +75,13 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:3000",
-        methods: ["GET", "POST"]
+        origin: [
+            process.env.FRONTEND_URL || "http://localhost:3000",
+            'https://app.wpma.io',
+            'http://localhost:3000',
+        ],
+        methods: ["GET", "POST"],
+        credentials: true,
     }
 });
 
@@ -77,15 +90,16 @@ const PORT = process.env.PORT || 8000;
 // Rate Limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 1000,   // 1000 req / 15 min pro IP (Dashboard + Polling + Onboarding)
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path === '/health', // Health-Check nie limitieren
 });
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 20,     // Login-Versuche: 20 / 15 min (statt 5)
     message: 'Too many login attempts, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -110,7 +124,9 @@ const corsOptions = {
             if (process.env.NODE_ENV !== 'production') {
                 return callback(null, true);
             }
-            return callback(new Error('CORS: Origin header required'), false);
+            // Allow direct browser navigation (no Origin) for public download endpoints
+            // req is not available here, so we pass through and let the route handle auth
+            return callback(null, true);
         }
 
         // Frontend domains (strenge Prüfung)
@@ -152,6 +168,16 @@ const corsOptions = {
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     maxAge: 600 // Cache preflight für 10 Minuten
 };
+
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: process.env.APP_VERSION || '1.0.0'
+    });
+});
 
 app.use(cors(corsOptions));
 app.use(limiter);
@@ -197,6 +223,15 @@ app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/staging', stagingRoutes);
 app.use('/api/v1/incremental-backup', incrementalBackupRoutes);
 app.use('/api/v1/payment', paymentRoutes);
+app.use('/api/v1/content', contentRoutes);
+app.use('/api/v1/sync', syncRoutes);
+app.use('/api/v1/agent', agentRoutes);
+app.use('/api/v1/revenue', revenueRoutes);
+app.use('/api/v1/onboarding', onboardingRoutes);
+app.use('/api/v1/clients', clientPortalRoutes);
+app.use('/api/v1/client-portal', clientPortalRoutes);
+app.use('/api/v1/links', linksRoutes);
+app.use('/api/v1/ssl', sslRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -218,15 +253,33 @@ app.use(sentryErrorHandler());
 // Error Handler
 app.use(errorHandler);
 
+// Socket.io JWT middleware — auto-join user room on connect
+const jwt = require('jsonwebtoken');
+io.use((socket, next) => {
+    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (!token) return next(); // allow unauthenticated (manual join_user_room still works)
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.userId = decoded.userId || decoded.id;
+    } catch (_) {}
+    next();
+});
+
 // Socket.io Connection Handler
 io.on('connection', (socket) => {
     logger.debug('WebSocket client connected', { socketId: socket.id });
-    
+
+    // Auto-join room if JWT was valid
+    if (socket.userId) {
+        socket.join(`user_${socket.userId}`);
+        logger.debug('User auto-joined room', { userId: socket.userId, socketId: socket.id });
+    }
+
     socket.on('join_user_room', (userId) => {
         socket.join(`user_${userId}`);
         logger.debug('User joined room', { userId, socketId: socket.id });
     });
-    
+
     socket.on('disconnect', () => {
         logger.debug('WebSocket client disconnected', { socketId: socket.id });
     });

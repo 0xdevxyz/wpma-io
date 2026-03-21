@@ -4,18 +4,21 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const AdmZip = require('adm-zip');
 const { query } = require('../config/database');
 const { ValidationError } = require('../utils/errors');
 
 class SitesController {
     async createSite(req, res) {
         try {
-            const { domain, site_url, site_name } = req.body;
+            // Frontend sendet snake_case; Controller-intern normalisieren
+            const domain = req.body.domain;
+            const site_url = req.body.site_url || req.body.siteUrl;
+            const site_name = req.body.site_name || req.body.siteName || domain;
             const { userId, planType } = req.user;
-            
-            // Validate input
-            if (!domain || !site_url || !site_name) {
-                throw new ValidationError('Domain, site URL, and site name are required');
+
+            if (!domain || !site_url) {
+                throw new ValidationError('Domain und Site-URL sind erforderlich');
             }
             
             // Check site limit based on plan
@@ -44,9 +47,9 @@ class SitesController {
             // Generate unique API key
             const apiKey = uuidv4();
             
-            // Generate setup token (one-time use, expires in 1 hour)
+            // Generate setup token (one-time use, expires in 24 hours)
             const setupToken = crypto.randomBytes(32).toString('hex');
-            const tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+            const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
             
             // Create site
             const result = await query(
@@ -90,13 +93,17 @@ class SitesController {
             
             const result = await query(
                 `SELECT s.id, s.domain, s.site_url, s.site_name, s.health_score, s.status,
-                        s.last_check, s.wordpress_version, s.php_version, s.created_at
+                        s.last_check, s.wordpress_version, s.php_version, s.created_at,
+                        s.last_plugin_connection, s.plugin_version, s.setup_token,
+                        s.setup_token_expires_at, s.setup_token_used,
+                        s.uptime_status, s.uptime_percent, s.avg_response_ms,
+                        s.plugins_updates, s.themes_updates, s.core_update_available
                  FROM sites s
                  WHERE s.user_id = $1 AND s.status = $2
                  ORDER BY s.created_at DESC`,
                 [userId, 'active']
             );
-            
+
             const sites = result.rows.map(row => ({
                 id: row.id,
                 domain: row.domain,
@@ -107,7 +114,20 @@ class SitesController {
                 lastCheck: row.last_check,
                 wordpressVersion: row.wordpress_version,
                 phpVersion: row.php_version,
-                createdAt: row.created_at
+                createdAt: row.created_at,
+                // Plugin-Verbindungsstatus
+                isConnected: Boolean(row.last_plugin_connection),
+                lastPluginConnection: row.last_plugin_connection,
+                pluginVersion: row.plugin_version,
+                setupToken: row.setup_token,
+                setupTokenExpired: row.setup_token_expires_at ? new Date() > new Date(row.setup_token_expires_at) : true,
+                setupTokenUsed: row.setup_token_used,
+                uptimeStatus: row.uptime_status || 'unknown',
+                uptimePercent: row.uptime_percent !== null ? parseFloat(row.uptime_percent) : null,
+                avgResponseMs: row.avg_response_ms || null,
+                pluginsUpdates: row.plugins_updates || 0,
+                themesUpdates: row.themes_updates || 0,
+                coreUpdateAvailable: Boolean(row.core_update_available),
             }));
             
             res.json({
@@ -155,7 +175,11 @@ class SitesController {
                     wordpressVersion: site.wordpress_version,
                     phpVersion: site.php_version,
                     createdAt: site.created_at,
-                    updatedAt: site.updated_at
+                    updatedAt: site.updated_at,
+                    isConnected: Boolean(site.last_plugin_connection),
+                    lastPluginConnection: site.last_plugin_connection,
+                    pluginVersion: site.plugin_version,
+                    setupTokenUsed: site.setup_token_used,
                 }
             });
         } catch (error) {
@@ -173,11 +197,26 @@ class SitesController {
             const healthData = req.body;
             
             // Validate site ownership via API key
-            const site = await query(
+            const incomingKey = req.headers.authorization?.replace('Bearer ', '');
+            let site = await query(
                 'SELECT id, user_id FROM sites WHERE id = $1 AND api_key = $2',
-                [siteId, req.headers.authorization?.replace('Bearer ', '')]
+                [siteId, incomingKey]
             );
-            
+
+            // Key-Mismatch: Plugin hat alten Key → DB-Key auf Plugin-Key aktualisieren
+            // (geschieht nur wenn siteId stimmt und der Key nicht leer ist)
+            if (site.rows.length === 0 && incomingKey) {
+                const bySiteId = await query(
+                    'SELECT id, user_id FROM sites WHERE id = $1 AND status = $2',
+                    [siteId, 'active']
+                );
+                if (bySiteId.rows.length > 0) {
+                    await query('UPDATE sites SET api_key = $1 WHERE id = $2', [incomingKey, siteId]);
+                    console.log(`[KeySync] Key für Site ${siteId} aus Plugin-Request übernommen`);
+                    site = bySiteId;
+                }
+            }
+
             if (site.rows.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -187,20 +226,40 @@ class SitesController {
             
             // Calculate health score
             const healthScore = this.calculateHealthScore(healthData);
-            
+
             // Update site
+            const pluginCount = Array.isArray(healthData.active_plugins)
+                ? healthData.active_plugins.length
+                : (healthData.plugin_count ?? null);
+
+            const pluginsUpdates = Array.isArray(healthData.active_plugins)
+                ? healthData.active_plugins.filter(p => p.update_available).length
+                : (healthData.plugins_updates ?? null);
+
+            const themesUpdates = healthData.themes_updates ?? null;
+            const coreUpdateAvailable = healthData.wp_update_available ?? healthData.core_update_available ?? null;
+
             await query(
-                `UPDATE sites 
-                 SET health_score = $1, 
+                `UPDATE sites
+                 SET health_score = $1,
                      wordpress_version = $2,
                      php_version = $3,
+                     plugin_count = COALESCE($4, plugin_count),
+                     plugins_updates = COALESCE($5, plugins_updates),
+                     themes_updates = COALESCE($6, themes_updates),
+                     core_update_available = COALESCE($7, core_update_available),
                      last_check = CURRENT_TIMESTAMP,
+                     last_plugin_connection = COALESCE(last_plugin_connection, CURRENT_TIMESTAMP),
                      updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $4`,
+                 WHERE id = $8`,
                 [
                     healthScore,
                     healthData.wordpress_version,
                     healthData.php_version,
+                    pluginCount,
+                    pluginsUpdates,
+                    themesUpdates,
+                    coreUpdateAvailable,
                     siteId
                 ]
             );
@@ -400,6 +459,97 @@ class SitesController {
         }
     }
     
+    async autoConnect(req, res) {
+        try {
+            const { site_url, site_name, plugin_version } = req.body;
+            const clientIp = req.ip || req.connection.remoteAddress;
+
+            if (!site_url) {
+                return res.status(400).json({ success: false, error: 'site_url is required' });
+            }
+
+            // Normalize domain: strip protocol, www., trailing slash, paths
+            const normaliseDomain = (u) => u
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/\/.*$/, '')
+                .toLowerCase();
+            const requestedDomain = normaliseDomain(site_url);
+
+            const domainExpr = `LOWER(REGEXP_REPLACE(SPLIT_PART(REGEXP_REPLACE(domain, '^https?://', '', 'i'), '/', 1), '^www\\.', '', 'i'))`;
+
+            // 1. Erstverbindung: unbenutzer Token + nicht verbunden
+            let result = await query(
+                `SELECT id, user_id, domain, site_name, api_key, last_plugin_connection
+                 FROM sites
+                 WHERE ${domainExpr} = $1
+                   AND status = 'active'
+                   AND setup_token_used = false
+                   AND setup_token_expires_at > NOW()
+                   AND last_plugin_connection IS NULL`,
+                [requestedDomain]
+            );
+
+            // 2. Key-Sync: Site bereits verbunden → trotzdem api_key zurückgeben (tägl. Re-Sync)
+            if (result.rows.length === 0) {
+                result = await query(
+                    `SELECT id, user_id, domain, site_name, api_key, last_plugin_connection
+                     FROM sites
+                     WHERE ${domainExpr} = $1 AND status = 'active'`,
+                    [requestedDomain]
+                );
+            }
+
+            if (result.rows.length === 0) {
+                logger.warn(`Auto-connect failed: no site for domain ${requestedDomain} - IP: ${clientIp}`);
+                return res.status(404).json({
+                    success: false,
+                    error: 'No matching site found. Please add this site in your WPMA dashboard first.'
+                });
+            }
+
+            const site = result.rows[0];
+            const isFirstConnect = !site.last_plugin_connection;
+
+            await query(
+                `UPDATE sites
+                 SET setup_token_used = true,
+                     last_plugin_connection = COALESCE(last_plugin_connection, CURRENT_TIMESTAMP),
+                     plugin_version = $1,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                [plugin_version || null, site.id]
+            );
+
+            console.log(`✅ Auto-connect${isFirstConnect ? ' (first)' : ' (key-sync)'} for site ${site.id} (${site.domain}) - IP: ${clientIp}`);
+
+            // Onboarding-Flow nur bei Erstverbindung starten
+            if (isFirstConnect) {
+                const { runOnboardingFlow } = require('../services/onboardingService');
+                runOnboardingFlow(site.id, site.user_id).catch(err =>
+                    console.error(`[Onboarding] Flow failed for site ${site.id}:`, err.message)
+                );
+            }
+
+            res.json({
+                success: true,
+                message: 'Site connected successfully',
+                data: {
+                    siteId: site.id,
+                    siteName: site.site_name,
+                    domain: site.domain,
+                    apiKey: site.api_key
+                }
+            });
+        } catch (error) {
+            console.error('Auto-connect error:', error);
+            res.status(400).json({
+                success: false,
+                error: error.message || 'Auto-connect failed'
+            });
+        }
+    }
+
     async regenerateSetupToken(req, res) {
         try {
             const { siteId } = req.params;
@@ -422,7 +572,7 @@ class SitesController {
             
             // Generate new token
             const setupToken = crypto.randomBytes(32).toString('hex');
-            const tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+            const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
             
             // Update site with new token
             await query(
@@ -507,15 +657,40 @@ class SitesController {
                 });
             }
             
-            // Log download
-            console.log(`Plugin downloaded for site ${site.id} (${site.domain}) - IP: ${clientIp}`);
-            
-            // Send file
-            res.download(pluginPath, 'wpma-agent.zip', (err) => {
-                if (err) {
-                    console.error('Plugin download error:', err);
-                }
+            // Fetch full site data for pre-configuration
+            const siteData = await query(
+                'SELECT id, domain, api_key FROM sites WHERE setup_token = $1',
+                [token]
+            );
+            const { id: siteId, domain, api_key: apiKey } = siteData.rows[0];
+
+            // Patch wpma-agent.php inside the ZIP with pre-configured credentials
+            const zip = new AdmZip(pluginPath);
+            const entry = zip.getEntry('wpma-agent/wpma-agent.php');
+            if (entry) {
+                let src = entry.getData().toString('utf8');
+                const inject = [
+                    `\ndefine('WPMA_PRECONFIGURED_API_KEY', '${apiKey}');`,
+                    `define('WPMA_PRECONFIGURED_SITE_ID', ${siteId});`,
+                    `define('WPMA_SETUP_TOKEN', '${token}');`,  // einmaliger sync-token
+                ].join('\n') + '\n';
+                src = src.replace(
+                    /define\('WPMA_API_URL'[^)]+\);/,
+                    (m) => m + inject
+                );
+                zip.updateFile('wpma-agent/wpma-agent.php', Buffer.from(src, 'utf8'));
+            }
+
+            const patchedZip = zip.toBuffer();
+
+            console.log(`Plugin downloaded for site ${siteId} (${domain}) - IP: ${clientIp}`);
+
+            res.set({
+                'Content-Type': 'application/zip',
+                'Content-Disposition': 'attachment; filename="wpma-agent.zip"',
+                'Content-Length': patchedZip.length,
             });
+            res.send(patchedZip);
         } catch (error) {
             console.error('Download plugin error:', error);
             res.status(400).json({
@@ -529,59 +704,179 @@ class SitesController {
         try {
             const { siteId } = req.params;
             const { userId } = req.user;
-            
-            // Verify ownership
+
             const siteResult = await query(
-                'SELECT id, domain, site_url FROM sites WHERE id = $1 AND user_id = $2 AND status = $3',
+                `SELECT id, domain, site_url, last_plugin_connection,
+                        health_score, plugins_updates, themes_updates, core_update_available,
+                        wordpress_version, php_version
+                 FROM sites WHERE id = $1 AND user_id = $2 AND status = $3`,
                 [siteId, userId, 'active']
             );
-            
+
             if (siteResult.rows.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Site not found'
-                });
+                return res.status(404).json({ success: false, error: 'Site not found' });
             }
-            
+
             const site = siteResult.rows[0];
-            
-            // Log health check request
-            console.log(`Manual health check requested for site ${site.id} (${site.domain}) by user ${userId}`);
-            
-            // Update last_check timestamp
-            await query(
-                'UPDATE sites SET last_check = CURRENT_TIMESTAMP WHERE id = $1',
-                [siteId]
-            );
-            
-            // Emit real-time update
-            if (req.io) {
-                req.io.to(`user_${userId}`).emit('health_check_started', {
-                    siteId: site.id,
-                    timestamp: new Date()
+
+            if (!site.last_plugin_connection) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'plugin_not_connected',
+                    message: 'WPMA Plugin ist nicht installiert.',
                 });
             }
-            
-            // In a real implementation, this would trigger the WordPress site to run checks
-            // For now, we just acknowledge the request
+
+            await query('UPDATE sites SET last_check = CURRENT_TIMESTAMP WHERE id = $1', [siteId]);
+
+            // Detect issues for immediate feedback
+            const issues = [];
+            if ((site.health_score || 0) < 70) {
+                issues.push({ type: 'health', message: `Health Score niedrig: ${site.health_score || 0}%`, severity: site.health_score < 40 ? 'critical' : 'warning' });
+            }
+            const totalUpdates = (site.plugins_updates || 0) + (site.themes_updates || 0) + (site.core_update_available ? 1 : 0);
+            if (totalUpdates > 0) {
+                issues.push({ type: 'updates', message: `${totalUpdates} Update${totalUpdates > 1 ? 's' : ''} ausstehend`, severity: site.core_update_available ? 'warning' : 'info' });
+            }
+            if (site.php_version && parseFloat(site.php_version) < 8.0) {
+                issues.push({ type: 'php', message: `PHP ${site.php_version} veraltet (empfohlen: 8.0+)`, severity: 'warning' });
+            }
+
+            // Trigger agent scan async (non-blocking)
+            try {
+                const { detectIssues, createTask } = require('../services/agentService');
+                detectIssues(siteId).then(async (agentIssues) => {
+                    for (const issue of agentIssues) {
+                        await createTask(siteId, userId, issue).catch(() => {});
+                    }
+                }).catch(() => {});
+            } catch (_) {}
+
             res.json({
                 success: true,
-                message: 'Health check initiated',
+                message: issues.length > 0 ? `${issues.length} Problem${issues.length > 1 ? 'e' : ''} gefunden` : 'Alles in Ordnung',
                 data: {
                     siteId: site.id,
                     domain: site.domain,
-                    timestamp: new Date()
+                    healthScore: site.health_score || 0,
+                    issues,
+                    totalUpdates,
+                    timestamp: new Date(),
                 }
             });
         } catch (error) {
             console.error('Run health check error:', error);
-            res.status(400).json({
-                success: false,
-                error: error.message || 'Failed to run health check'
-            });
+            res.status(400).json({ success: false, error: error.message || 'Failed to run health check' });
         }
     }
     
+    async verifyPlugin(req, res) {
+        try {
+            const { siteId } = req.params;
+            const userId = req.user?.userId || req.user?.id;
+
+            const siteResult = await query(
+                'SELECT id, domain, site_url, api_key, setup_token, last_plugin_connection, onboarding_status FROM sites WHERE id = $1 AND user_id = $2 AND status = $3',
+                [siteId, userId, 'active']
+            );
+
+            if (siteResult.rows.length === 0) {
+                return res.status(404).json({ success: false, error: 'Site not found' });
+            }
+
+            const site    = siteResult.rows[0];
+            const siteUrl = (site.site_url || '').replace(/\/$/, '');
+
+            let statusData = null;
+            try {
+                const response = await axios.get(`${siteUrl}/wp-json/wpma/v1/status`, {
+                    headers: { 'User-Agent': 'WPMA-Backend/1.0' },
+                    timeout: 10000,
+                    validateStatus: null,
+                });
+                if (response.status === 200 && response.data?.status === 'ok') {
+                    statusData = response.data;
+                }
+            } catch (_) {
+                // unreachable / network error
+            }
+
+            if (!statusData) {
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        pluginStatus:  'not_found',
+                        message:       'WPMA Plugin not found on this site. Please install and activate the plugin.',
+                        isConnected:   false,
+                    },
+                });
+            }
+
+            if (!statusData.api_key_set) {
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        pluginStatus: 'installed_not_configured',
+                        message:      'Plugin is installed but the API key has not been stored yet. Please download and install the pre-configured plugin ZIP.',
+                        isConnected:  false,
+                        pluginVersion: statusData.version,
+                    },
+                });
+            }
+
+            // Key-Sync: Korrekten API-Key per setup_token ins Plugin pushen
+            // (löst Key-Mismatch nach Re-Install ohne erneutes ZIP-Herunterladen)
+            if (site.setup_token) {
+                try {
+                    await axios.post(
+                        `${siteUrl}/wp-json/wpma/v1/key-sync`,
+                        { setup_token: site.setup_token, api_key: site.api_key, site_id: site.id },
+                        { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
+                    );
+                    console.log(`[KeySync] Key via key-sync für Site ${site.id} gesetzt`);
+                } catch (e) {
+                    // key-sync schlägt fehl wenn Plugin alten Code hat → ignorieren
+                    console.log(`[KeySync] key-sync nicht verfügbar für Site ${site.id}: ${e.message}`);
+                }
+            }
+
+            // Plugin installed and API key set — mark as connected
+            const wasAlreadyConnected = Boolean(site.last_plugin_connection);
+            await query(
+                `UPDATE sites
+                    SET last_plugin_connection = COALESCE(last_plugin_connection, CURRENT_TIMESTAMP),
+                        setup_token_used       = true,
+                        plugin_version         = $1,
+                        updated_at             = CURRENT_TIMESTAMP
+                  WHERE id = $2`,
+                [statusData.version || null, site.id]
+            );
+
+            // Onboarding-Flow starten wenn: erste Verbindung ODER Status noch 'pending'
+            const needsOnboarding = !wasAlreadyConnected || !site.onboarding_status || site.onboarding_status === 'pending';
+            if (needsOnboarding) {
+                const { runOnboardingFlow } = require('../services/onboardingService');
+                runOnboardingFlow(site.id, userId).catch(err =>
+                    console.error(`[Onboarding] Flow failed for site ${site.id}:`, err.message)
+                );
+            }
+
+            return res.json({
+                success: true,
+                data: {
+                    pluginStatus:  'connected',
+                    message:       'Plugin is installed and configured.',
+                    isConnected:   true,
+                    pluginVersion: statusData.version,
+                    apiKeySet:     true,
+                },
+            });
+        } catch (error) {
+            console.error('verifyPlugin error:', error);
+            res.status(500).json({ success: false, error: error.message || 'Failed to verify plugin' });
+        }
+    }
+
     async fetchSiteMetadata(req, res) {
         try {
             const { url } = req.body;
@@ -605,17 +900,17 @@ class SitesController {
             }
             
             // Use normalized URL for all further operations
-            url = normalizedUrl;
+            const resolvedUrl = normalizedUrl;
             
             // Extract domain (everything after https://)
             const domain = siteUrl.hostname.replace(/^www\./, '');
             
-            console.log(`Fetching metadata for: ${url}`);
-            
+            console.log(`Fetching metadata for: ${resolvedUrl}`);
+
             // Fetch the website HTML
             let html;
             try {
-                const response = await axios.get(url, {
+                const response = await axios.get(resolvedUrl, {
                     timeout: 10000,
                     headers: {
                         'User-Agent': 'WPMA.io Bot/1.0 (Site Registration)',
@@ -676,7 +971,7 @@ class SitesController {
                 data: {
                     domain: domain,
                     siteName: siteName,
-                    siteUrl: url
+                    siteUrl: resolvedUrl
                 }
             });
         } catch (error) {

@@ -11,7 +11,13 @@ const siteIdParams = Joi.object({ siteId: idSchema });
 
 // Public routes (no authentication required)
 router.post('/setup-token/exchange', sanitize, sitesController.exchangeSetupToken);
-router.get('/plugin/download/:token', sitesController.downloadPlugin);
+router.post('/auto-connect', sanitize, sitesController.autoConnect);
+
+// Plugin download — no CORS restriction, direct browser navigation allowed
+router.get('/plugin/download/:token', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    next();
+}, sitesController.downloadPlugin);
 
 // All other routes require authentication
 router.use(authenticateToken);
@@ -68,6 +74,12 @@ router.delete('/:siteId',
 router.post('/:siteId/setup-token/regenerate',
     validate(siteIdParams, 'params'),
     sitesController.regenerateSetupToken
+);
+
+// Verify plugin installation on a site (pull-based, no WP auth needed)
+router.post('/:siteId/verify-plugin',
+    validate(siteIdParams, 'params'),
+    sitesController.verifyPlugin
 );
 
 module.exports = router; 

@@ -9,174 +9,331 @@
  * Text Domain: wpma-agent
  */
 
-// Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
+if (!defined('ABSPATH')) exit;
+
+// Safe constant definitions — never crash if already defined
+if (!defined('WPMA_VERSION'))     define('WPMA_VERSION',     '1.3.0');
+if (!defined('WPMA_PLUGIN_URL'))  define('WPMA_PLUGIN_URL',  plugin_dir_url(__FILE__));
+if (!defined('WPMA_PLUGIN_PATH')) define('WPMA_PLUGIN_PATH', plugin_dir_path(__FILE__));
+if (!defined('WPMA_API_URL'))     define('WPMA_API_URL',     'https://api.wpma.io');
+
+// ─── REST API endpoints ───────────────────────────────────────────────────────
+// Registered unconditionally — no class dependencies, always available.
+add_action('rest_api_init', 'wpma_register_rest_routes');
+function wpma_register_rest_routes() {
+
+    // GET /wp-json/wpma/v1/status  (public)
+    register_rest_route('wpma/v1', '/status', array(
+        'methods'             => 'GET',
+        'permission_callback' => '__return_true',
+        'callback'            => function () {
+            return array(
+                'status'            => 'ok',
+                'version'           => WPMA_VERSION,
+                'wordpress_version' => get_bloginfo('version'),
+                'php_version'       => PHP_VERSION,
+                'site_url'          => get_site_url(),
+                'api_key_set'       => (bool) get_option('wpma_api_key'),
+            );
+        },
+    ));
+
+    // POST /wp-json/wpma/v1/key-sync  (public, authenticated via setup_token)
+    // Ermöglicht dem Backend, den gespeicherten API-Key zu korrigieren ohne Plugin-Neuinstall.
+    register_rest_route('wpma/v1', '/key-sync', array(
+        'methods'             => 'POST',
+        'permission_callback' => '__return_true',
+        'callback'            => function ( $request ) {
+            $params      = $request->get_json_params();
+            $setup_token = isset($params['setup_token'])  ? sanitize_text_field($params['setup_token'])  : '';
+            $new_key     = isset($params['api_key'])      ? sanitize_text_field($params['api_key'])      : '';
+            $site_id     = isset($params['site_id'])      ? intval($params['site_id'])                   : 0;
+
+            if (!$setup_token || !$new_key || !$site_id) {
+                return new WP_Error('missing_params', 'setup_token, api_key and site_id are required', array('status' => 400));
+            }
+
+            // Einmal-Token aus Plugin-Konstante (in ZIP vorinjiziert)
+            $expected_token = defined('WPMA_SETUP_TOKEN') ? WPMA_SETUP_TOKEN : '';
+            if (!$expected_token || !hash_equals($expected_token, $setup_token)) {
+                return new WP_Error('forbidden', 'Invalid setup token', array('status' => 403));
+            }
+
+            update_option('wpma_api_key', $new_key);
+            update_option('wpma_site_id', $site_id);
+            delete_transient('wpma_key_synced_today'); // nächste auto_connect erzwingen
+
+            return array('success' => true, 'message' => 'API key updated');
+        },
+    ));
+
+    // Shared key-check closure
+    $check_key = function () {
+        $key    = isset($_SERVER['HTTP_X_WPMA_KEY']) ? $_SERVER['HTTP_X_WPMA_KEY'] : '';
+        $stored = get_option('wpma_api_key', '');
+        if (!$stored || !hash_equals($stored, $key)) {
+            return new WP_Error('forbidden', 'Invalid API key', array('status' => 403));
+        }
+        return true;
+    };
+
+    // GET /wp-json/wpma/v1/health  (authenticated)
+    register_rest_route('wpma/v1', '/health', array(
+        'methods'             => 'GET',
+        'permission_callback' => $check_key,
+        'callback'            => function () {
+            global $wpdb;
+            if (!function_exists('get_plugins'))       require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            if (!function_exists('get_plugin_updates')) require_once ABSPATH . 'wp-admin/includes/update.php';
+
+            $all_plugins    = get_plugins();
+            $active_slugs   = get_option('active_plugins', array());
+            $plugin_updates = get_plugin_updates();
+
+            $active_list = array();
+            foreach ($active_slugs as $slug) {
+                if (!isset($all_plugins[$slug])) continue;
+                $p = $all_plugins[$slug];
+                $active_list[] = array(
+                    'name'             => $p['Name'],
+                    'version'          => $p['Version'],
+                    'update_available' => isset($plugin_updates[$slug]),
+                );
+            }
+
+            $theme        = wp_get_theme();
+            $core_upd     = get_core_updates();
+            $wp_update    = !empty($core_upd) && isset($core_upd[0]->response) && $core_upd[0]->response === 'upgrade';
+            $theme_upd    = function_exists('get_theme_updates') ? count(get_theme_updates()) : 0;
+            $total_upd    = count($plugin_updates) + $theme_upd + ($wp_update ? 1 : 0);
+            $db_size      = (int) $wpdb->get_var("SELECT SUM(data_length+index_length) FROM information_schema.tables WHERE table_schema=DATABASE()");
+            $health       = max(0, 100 - $total_upd * 10);
+
+            return array(
+                'wordpress_version'  => get_bloginfo('version'),
+                'php_version'        => PHP_VERSION,
+                'site_url'           => get_site_url(),
+                'site_name'          => get_bloginfo('name'),
+                'plugin_count'       => count($all_plugins),
+                'active_plugins'     => $active_list,
+                'theme'              => array('name' => $theme->get('Name'), 'version' => $theme->get('Version')),
+                'wp_update_available'=> $wp_update,
+                'plugins_updates'    => count($plugin_updates),
+                'themes_updates'     => $theme_upd,
+                'total_updates'      => $total_upd,
+                'db_size'            => $db_size,
+                'server_info'        => array(
+                    'php_version'        => PHP_VERSION,
+                    'max_execution_time' => (int) ini_get('max_execution_time'),
+                    'memory_limit'       => ini_get('memory_limit'),
+                ),
+                'health_score'       => $health,
+            );
+        },
+    ));
+
+    // GET /wp-json/wpma/v1/plugins  (authenticated)
+    register_rest_route('wpma/v1', '/plugins', array(
+        'methods'             => 'GET',
+        'permission_callback' => $check_key,
+        'callback'            => function () {
+            if (!function_exists('get_plugins'))       require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            if (!function_exists('get_plugin_updates')) require_once ABSPATH . 'wp-admin/includes/update.php';
+            $all     = get_plugins();
+            $active  = get_option('active_plugins', array());
+            $updates = get_plugin_updates();
+            $list    = array();
+            foreach ($all as $file => $p) {
+                $slug   = dirname($file);
+                if ($slug === '.') $slug = basename($file, '.php');
+                $list[] = array(
+                    'name'             => $p['Name'],
+                    'slug'             => $slug,
+                    'version'          => $p['Version'],
+                    'active'           => in_array($file, $active),
+                    'update_available' => isset($updates[$file]),
+                    'description'      => wp_strip_all_tags($p['Description']),
+                );
+            }
+            return array('plugins' => $list);
+        },
+    ));
+
+    // POST /wp-json/wpma/v1/run-updates  (authenticated) — führt verfügbare Updates aus
+    register_rest_route('wpma/v1', '/run-updates', array(
+        'methods'             => 'POST',
+        'permission_callback' => $check_key,
+        'callback'            => function ( $request ) {
+            if ( ! function_exists( 'get_plugin_updates' ) ) {
+                require_once ABSPATH . 'wp-admin/includes/update.php';
+            }
+            if ( ! class_exists( 'Plugin_Upgrader' ) ) {
+                require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+            }
+            if ( ! function_exists( 'get_plugins' ) ) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            }
+
+            $params        = $request->get_json_params();
+            $update_core   = ! empty( $params['update_core'] );
+            $update_themes = ! empty( $params['update_themes'] );
+            $plugin_files  = isset( $params['plugins'] ) && is_array( $params['plugins'] ) ? $params['plugins'] : array();
+
+            wp_update_plugins();
+            $plugin_updates = get_plugin_updates();
+
+            $updated = 0;
+            $failed  = 0;
+            $skin    = new Automatic_Upgrader_Skin();
+
+            foreach ( $plugin_updates as $plugin_file => $plugin_data ) {
+                // Wenn explizite Liste angegeben, nur diese updaten
+                if ( ! empty( $plugin_files ) && ! in_array( $plugin_file, $plugin_files, true ) ) {
+                    continue;
+                }
+                $upgrader = new Plugin_Upgrader( $skin );
+                $result   = $upgrader->upgrade( $plugin_file );
+                if ( $result && ! is_wp_error( $result ) ) {
+                    $updated++;
+                } else {
+                    $failed++;
+                }
+            }
+
+            // Themes updaten
+            if ( $update_themes ) {
+                wp_update_themes();
+                $theme_updates = get_theme_updates();
+                foreach ( $theme_updates as $stylesheet => $theme ) {
+                    $upgrader = new Theme_Upgrader( $skin );
+                    $result   = $upgrader->upgrade( $stylesheet );
+                    if ( $result && ! is_wp_error( $result ) ) {
+                        $updated++;
+                    } else {
+                        $failed++;
+                    }
+                }
+            }
+
+            // WordPress Core updaten
+            if ( $update_core ) {
+                $core_updates = get_core_updates();
+                if ( ! empty( $core_updates ) && isset( $core_updates[0]->response ) && $core_updates[0]->response === 'upgrade' ) {
+                    $upgrader = new Core_Upgrader( $skin );
+                    $upgrader->upgrade( $core_updates[0] );
+                }
+            }
+
+            return array( 'updated' => $updated, 'failed' => $failed );
+        },
+    ));
+
+    // GET /wp-json/wpma/v1/security  (authenticated)
+    register_rest_route('wpma/v1', '/security', array(
+        'methods'             => 'GET',
+        'permission_callback' => $check_key,
+        'callback'            => function () {
+            $admins     = get_users(array('role' => 'administrator', 'fields' => 'ID'));
+            $user_count = (int) count_users()['total_users'];
+            $last_upd   = get_option('_site_transient_update_core');
+            $last_ts    = ($last_upd && isset($last_upd->last_checked)) ? date('c', $last_upd->last_checked) : null;
+            $score      = 100;
+            if (defined('WP_DEBUG') && WP_DEBUG)                        $score -= 20;
+            if (!defined('DISALLOW_FILE_EDIT') || !DISALLOW_FILE_EDIT)  $score -= 10;
+            if (!is_ssl())                                               $score -= 20;
+            if (count($admins) > 3)                                      $score -= 10;
+            return array(
+                'wordpress_debug'      => defined('WP_DEBUG') && WP_DEBUG,
+                'file_editor_disabled' => defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT,
+                'ssl_enabled'          => is_ssl(),
+                'user_count'           => $user_count,
+                'admin_users'          => count($admins),
+                'last_wp_update'       => $last_ts,
+                'security_score'       => max(0, $score),
+            );
+        },
+    ));
 }
 
-// Define plugin constants
-define('WPMA_VERSION', '1.3.0');
-define('WPMA_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('WPMA_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('WPMA_API_URL', 'https://api.wpma.io');
-
-// Include required files
-require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-core.php';
-require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-security.php';
-require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-backup.php';
-require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-performance.php';
-require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-api.php';
-require_once WPMA_PLUGIN_PATH . 'includes/class-wpma-updates.php';
-require_once WPMA_PLUGIN_PATH . 'admin/class-wpma-admin.php';
-
-// Initialize the plugin
-function wpma_init() {
-    global $wpma_core, $wpma_updates, $wpma_backup;
-    
-    $wpma_core = new WPMA_Core();
-    $wpma_core->init();
-    
-    // Initialize Updates module
-    $wpma_updates = new WPMA_Updates();
-    
-    // Initialize Backup module (mit REST API)
-    $wpma_backup = new WPMA_Backup();
-    $wpma_backup->init();
-    
-    // Initialize admin
-    if (is_admin()) {
-        new WPMA_Admin();
+// ─── Plugin initialisation (classes) ─────────────────────────────────────────
+// Runs on plugins_loaded — after REST routes are registered above.
+// A broken class file here cannot affect the REST endpoints.
+if (!function_exists('wpma_init')) {
+    function wpma_init() {
+        $files = array(
+            'includes/class-wpma-api.php',
+            'includes/class-wpma-core.php',
+            'includes/class-wpma-security.php',
+            'includes/class-wpma-backup.php',
+            'includes/class-wpma-performance.php',
+            'includes/class-wpma-updates.php',
+            'admin/class-wpma-admin.php',
+        );
+        foreach ($files as $f) {
+            $path = WPMA_PLUGIN_PATH . $f;
+            if (file_exists($path)) require_once $path;
+        }
+        if (class_exists('WPMA_Core'))    { global $wpma_core;    $wpma_core = new WPMA_Core(); $wpma_core->init(); }
+        if (class_exists('WPMA_Updates')) { global $wpma_updates; $wpma_updates = new WPMA_Updates(); }
+        if (class_exists('WPMA_Backup'))  { global $wpma_backup;  $wpma_backup = new WPMA_Backup(); $wpma_backup->init(); }
+        if (is_admin() && class_exists('WPMA_Admin')) new WPMA_Admin();
     }
+    add_action('plugins_loaded', 'wpma_init');
 }
-add_action('plugins_loaded', 'wpma_init');
 
-// Add AJAX handlers for security scan and performance
-add_action('wp_ajax_wpma_run_security_scan', 'wpma_ajax_security_scan');
-function wpma_ajax_security_scan() {
-    check_ajax_referer('wpma_nonce', 'nonce');
-    
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Nicht autorisiert');
-        return;
+// ─── Key-Sync: bei jedem Admin-Aufruf sicherstellen dass der Key korrekt ist ──
+// Läuft einmal täglich (Transient), damit kein Key-Mismatch nach Re-Install bleibt.
+add_action('admin_init', 'wpma_maybe_auto_connect');
+function wpma_maybe_auto_connect() {
+    // Täglich synchronisieren — nicht bei jedem Seitenaufruf
+    if (!get_transient('wpma_needs_auto_connect') && get_transient('wpma_key_synced_today')) return;
+    delete_transient('wpma_needs_auto_connect');
+    set_transient('wpma_key_synced_today', true, DAY_IN_SECONDS);
+
+    if (!class_exists('WPMA_API')) {
+        $f = WPMA_PLUGIN_PATH . 'includes/class-wpma-api.php';
+        if (file_exists($f)) require_once $f;
     }
-    
-    $security = new WPMA_Security();
-    $result = $security->send_security_scan();
-    
-    if ($result && isset($result['success']) && $result['success']) {
-        update_option('wpma_last_security_scan', current_time('mysql'));
-        wp_send_json_success('Security Scan erfolgreich');
-    } else {
-        wp_send_json_error($result['error'] ?? 'Scan fehlgeschlagen');
+    if (!class_exists('WPMA_API')) return;
+    $api      = new WPMA_API();
+    $response = $api->auto_connect();
+    if ($response && !empty($response['success'])) {
+        $data = $response['data'];
+        update_option('wpma_api_key',       $data['apiKey']);
+        update_option('wpma_site_id',       $data['siteId']);
+        update_option('wpma_site_name',     $data['siteName'] ?? get_bloginfo('name'));
+        update_option('wpma_needs_setup',   false);
+        update_option('wpma_configured_at', current_time('mysql'));
     }
 }
 
-add_action('wp_ajax_wpma_update_performance', 'wpma_ajax_performance_check');
-function wpma_ajax_performance_check() {
-    check_ajax_referer('wpma_nonce', 'nonce');
-    
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Nicht autorisiert');
-        return;
-    }
-    
-    $performance = new WPMA_Performance();
-    $result = $performance->send_complete_metrics();
-    
-    if ($result && isset($result['success']) && $result['success']) {
-        wp_send_json_success('Performance-Daten gesendet');
-    } else {
-        wp_send_json_error($result['error'] ?? 'Fehler beim Senden');
-    }
-}
-
-add_action('wp_ajax_wpma_test_connection', 'wpma_ajax_test_connection');
-function wpma_ajax_test_connection() {
-    check_ajax_referer('wpma_nonce', 'nonce');
-    
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Nicht autorisiert');
-        return;
-    }
-    
-    $api_client = new WPMA_API();
-    $api_key = get_option('wpma_api_key');
-    $result = $api_client->test_connection($api_key);
-    
-    if ($result && isset($result['status']) && $result['status'] === 'healthy') {
-        wp_send_json_success('Verbindung erfolgreich!');
-    } else {
-        wp_send_json_error('Verbindung fehlgeschlagen: ' . ($result['error'] ?? 'Unbekannter Fehler'));
-    }
-}
-
-// Show success notice after automatic setup
-add_action('admin_notices', 'wpma_setup_success_notice');
-function wpma_setup_success_notice() {
-    if (get_transient('wpma_setup_success')) {
-        $site_name = get_option('wpma_site_name', 'Ihre Site');
-        ?>
-        <div class="notice notice-success is-dismissible">
-            <p>
-                <strong>WPMA Agent erfolgreich konfiguriert!</strong><br>
-                Ihre WordPress-Site "<?php echo esc_html($site_name); ?>" ist jetzt mit WPMA.io verbunden und wird automatisch überwacht.
-            </p>
-        </div>
-        <?php
-        delete_transient('wpma_setup_success');
-    }
-}
-
-// Activation hook
+// ─── Activation ──────────────────────────────────────────────────────────────
 register_activation_hook(__FILE__, 'wpma_activate');
 function wpma_activate() {
-    // Create necessary database tables
-    WPMA_Core::create_tables();
-    
-    // Schedule cron jobs
-    if (!wp_next_scheduled('wpma_health_check')) {
-        wp_schedule_event(time(), 'hourly', 'wpma_health_check');
+    $f = WPMA_PLUGIN_PATH . 'includes/class-wpma-core.php';
+    if (file_exists($f)) require_once $f;
+    if (class_exists('WPMA_Core')) WPMA_Core::create_tables();
+
+    foreach (array('wpma_health_check' => 'hourly', 'wpma_security_scan' => 'daily', 'wpma_backup_check' => 'daily', 'wpma_performance_check' => 'hourly') as $hook => $freq) {
+        if (!wp_next_scheduled($hook)) wp_schedule_event(time(), $freq, $hook);
     }
-    if (!wp_next_scheduled('wpma_security_scan')) {
-        wp_schedule_event(time(), 'daily', 'wpma_security_scan');
+
+    // Pre-konfigurierter Key überschreibt immer einen alten gespeicherten Key,
+    // damit re-installierte Plugins sich korrekt mit der neuen Site verbinden.
+    if (defined('WPMA_PRECONFIGURED_API_KEY') && WPMA_PRECONFIGURED_API_KEY) {
+        update_option('wpma_api_key',       WPMA_PRECONFIGURED_API_KEY);
+        update_option('wpma_site_id',       WPMA_PRECONFIGURED_SITE_ID);
+        update_option('wpma_needs_setup',   false);
+        update_option('wpma_configured_at', current_time('mysql'));
+    } elseif (!get_option('wpma_api_key')) {
+        set_transient('wpma_needs_auto_connect', true, 86400);
     }
-    if (!wp_next_scheduled('wpma_backup_check')) {
-        wp_schedule_event(time(), 'daily', 'wpma_backup_check');
-    }
-    if (!wp_next_scheduled('wpma_performance_check')) {
-        wp_schedule_event(time(), 'hourly', 'wpma_performance_check');
-    }
-    
-    // Check for setup token in URL or session
-    wpma_try_auto_setup();
 }
 
-// Try automatic setup with token
-function wpma_try_auto_setup() {
-    // Check if already configured
-    if (get_option('wpma_api_key')) {
-        return;
-    }
-    
-    // Set flag to show setup wizard
-    update_option('wpma_needs_setup', true);
-}
-
-// Deactivation hook
+// ─── Deactivation ────────────────────────────────────────────────────────────
 register_deactivation_hook(__FILE__, 'wpma_deactivate');
 function wpma_deactivate() {
-    // Clear scheduled events
-    wp_clear_scheduled_hook('wpma_health_check');
-    wp_clear_scheduled_hook('wpma_security_scan');
-    wp_clear_scheduled_hook('wpma_backup_check');
-    wp_clear_scheduled_hook('wpma_performance_check');
+    foreach (array('wpma_health_check', 'wpma_security_scan', 'wpma_backup_check', 'wpma_performance_check') as $hook) {
+        wp_clear_scheduled_hook($hook);
+    }
 }
-
-// Uninstall hook
-register_uninstall_hook(__FILE__, 'wpma_uninstall');
-function wpma_uninstall() {
-    // Clean up database tables
-    global $wpdb;
-    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wpma_settings");
-    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wpma_logs");
-} 

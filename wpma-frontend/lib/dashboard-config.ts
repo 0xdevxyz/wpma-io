@@ -12,6 +12,12 @@ export interface Site {
   pluginsUpdates?: number;
   themesUpdates?: number;
   coreUpdateAvailable?: boolean;
+  isConnected?: boolean;
+  setupToken?: string;
+  uptimeStatus?: string;
+  uptimePercent?: number | null;
+  avgResponseMs?: number | null;
+  lastUptimeCheck?: string | null;
 }
 
 export interface SortConfig {
@@ -19,7 +25,7 @@ export interface SortConfig {
   direction: 'asc' | 'desc' | null;
 }
 
-export type BulkAction = 'core-update' | 'plugin-update' | 'theme-update' | 'backup' | 'healthcheck';
+export type BulkAction = 'core-update' | 'plugin-update' | 'theme-update' | 'backup' | 'healthcheck' | 'delete';
 
 export type ViewMode = 'table' | 'card';
 

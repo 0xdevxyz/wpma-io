@@ -11,6 +11,7 @@ class NotificationService {
             slack: this.sendSlack.bind(this),
             discord: this.sendDiscord.bind(this),
             email: this.sendEmail.bind(this),
+            telegram: this.sendTelegram.bind(this),
             webhook: this.sendWebhook.bind(this)
         };
     }
@@ -195,6 +196,58 @@ class NotificationService {
     }
 
     /**
+     * Sendet Benachrichtigung via Telegram Bot API
+     * config: { botToken, chatId }
+     */
+    async sendTelegram(config, message, data) {
+        if (!config.botToken || !config.chatId) {
+            throw new Error('Telegram botToken und chatId erforderlich');
+        }
+
+        // Einfaches Markdown-Format für Telegram
+        let text = `*${this.escapeTelegramMd(message.title)}*\n\n${this.escapeTelegramMd(message.body)}`;
+
+        if (message.fields && message.fields.length > 0) {
+            text += '\n\n' + message.fields
+                .map(f => `• *${this.escapeTelegramMd(f.label)}:* ${this.escapeTelegramMd(String(f.value || ''))}`)
+                .join('\n');
+        }
+
+        if (data.url) {
+            text += `\n\n[Details anzeigen](${data.url})`;
+        }
+
+        const response = await fetch(
+            `https://api.telegram.org/bot${config.botToken}/sendMessage`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: config.chatId,
+                    text,
+                    parse_mode: 'MarkdownV2',
+                    disable_web_page_preview: true,
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            const body = await response.text();
+            throw new Error(`Telegram API error: ${response.status} – ${body}`);
+        }
+
+        return true;
+    }
+
+    /**
+     * Escaped Sonderzeichen für Telegram MarkdownV2
+     */
+    escapeTelegramMd(text) {
+        if (!text) return '';
+        return String(text).replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, '\\$&');
+    }
+
+    /**
      * Sendet an benutzerdefinierten Webhook (Zapier, Make, etc.)
      */
     async sendWebhook(config, message, data) {
@@ -308,6 +361,45 @@ class NotificationService {
                     { label: 'Ladezeit', value: (data.loadTime || 'N/A') + 'ms' },
                     { label: 'Schwellwert', value: (data.threshold || 3000) + 'ms' }
                 ]
+            },
+            onboarding_step_ok: {
+                title: '✅ Setup-Schritt abgeschlossen: ' + (data.domain || 'Unbekannt'),
+                body: `*${data.step || 'Schritt'}* wurde erfolgreich abgeschlossen.\n${data.detail || ''}`,
+                fields: [{ label: 'Site', value: data.domain }]
+            },
+            onboarding_step_warning: {
+                title: '⚠️ Setup-Warnung: ' + (data.domain || 'Unbekannt'),
+                body: `Schritt *${data.step || 'Unbekannt'}* konnte nicht vollständig ausgeführt werden.\n${data.detail || ''}`,
+                fields: [{ label: 'Site', value: data.domain }]
+            },
+            onboarding_malware_found: {
+                title: '🚨 Malware gefunden: ' + (data.domain || 'Unbekannt'),
+                body: `Beim Setup-Scan wurden kritische Sicherheitsprobleme auf *${data.domain}* gefunden.\nBitte sofort prüfen!`,
+                fields: [
+                    { label: 'Site', value: data.domain },
+                    { label: 'Security Score', value: String(data.score ?? 'n/a') }
+                ]
+            },
+            onboarding_license_required: {
+                title: '🔑 Lizenz erforderlich: ' + (data.domain || 'Unbekannt'),
+                body: `Für ${(data.plugins || []).length} Premium-Plugin(s) auf *${data.domain}* werden Lizenzschlüssel benötigt, um Updates einzuspielen.\n` +
+                      `Plugins: ${(data.plugins || []).join(', ')}`,
+                fields: [{ label: 'Site', value: data.domain }]
+            },
+            onboarding_rollback: {
+                title: '↩️ Rollback durchgeführt: ' + (data.domain || 'Unbekannt'),
+                body: `Nach einem fehlgeschlagenen Funktionstest wurde *${data.domain}* auf das Backup zurückgesetzt.\n\n` +
+                      `Diagnose: ${data.diagnosis || 'Unbekannt'}`,
+                fields: [
+                    { label: 'HTTP Status', value: String(data.httpStatus || 'Timeout') },
+                    { label: 'Empfehlung', value: 'Bitte Plugin-Kompatibilität prüfen' }
+                ]
+            },
+            onboarding_completed: {
+                title: '🎉 Setup abgeschlossen: ' + (data.domain || 'Unbekannt'),
+                body: `*${data.domain}* wurde erfolgreich eingerichtet!\n` +
+                      `Alle Features sind jetzt verfügbar: Monitoring, Backups, Updates, Security.`,
+                fields: [{ label: 'Site', value: data.domain }]
             }
         };
 
@@ -331,7 +423,13 @@ class NotificationService {
             update_available: 0x0099ff,
             update_completed: 0x00ff00,
             ssl_expiring: 0xffa500,
-            performance_degraded: 0xffa500
+            performance_degraded: 0xffa500,
+            onboarding_step_ok: 0x00ff00,
+            onboarding_step_warning: 0xffa500,
+            onboarding_malware_found: 0xff0000,
+            onboarding_license_required: 0x0099ff,
+            onboarding_rollback: 0xff6600,
+            onboarding_completed: 0x00ff00
         };
         return colors[eventType] || 0x6366f1; // Default: Indigo
     }
@@ -479,7 +577,13 @@ class NotificationService {
             { id: 'update_available', name: 'Updates verfügbar', description: 'Neue Updates vorhanden' },
             { id: 'update_completed', name: 'Updates installiert', description: 'Updates wurden installiert' },
             { id: 'ssl_expiring', name: 'SSL läuft ab', description: 'SSL-Zertifikat läuft bald ab' },
-            { id: 'performance_degraded', name: 'Performance-Problem', description: 'Ladezeit verschlechtert' }
+            { id: 'performance_degraded', name: 'Performance-Problem', description: 'Ladezeit verschlechtert' },
+            { id: 'onboarding_step_ok', name: 'Setup-Schritt OK', description: 'Einrichtungsschritt abgeschlossen' },
+            { id: 'onboarding_step_warning', name: 'Setup-Warnung', description: 'Einrichtungsschritt mit Warnung' },
+            { id: 'onboarding_malware_found', name: 'Malware gefunden', description: 'Sicherheitsscan fand Bedrohungen' },
+            { id: 'onboarding_license_required', name: 'Lizenz erforderlich', description: 'Premium-Plugin braucht Lizenzschlüssel' },
+            { id: 'onboarding_rollback', name: 'Rollback durchgeführt', description: 'Site nach Update-Fehler zurückgesetzt' },
+            { id: 'onboarding_completed', name: 'Setup abgeschlossen', description: 'Vollständige Einrichtung erfolgreich' }
         ];
     }
 }

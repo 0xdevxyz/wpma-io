@@ -1,4 +1,5 @@
 <?php
+if (class_exists('WPMA_Security')) return;
 
 class WPMA_Security {
     

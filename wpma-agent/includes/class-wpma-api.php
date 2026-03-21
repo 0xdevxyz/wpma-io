@@ -1,4 +1,5 @@
 <?php
+if (class_exists('WPMA_API')) return;
 
 class WPMA_API {
     
@@ -186,6 +187,18 @@ class WPMA_API {
             'POST', 
             '/api/v1/sites/setup-token/exchange',
             array('token' => $token)
+        );
+    }
+
+    public function auto_connect() {
+        return $this->make_request(
+            'POST',
+            '/api/v1/sites/auto-connect',
+            array(
+                'site_url'       => get_site_url(),
+                'site_name'      => get_bloginfo('name'),
+                'plugin_version' => WPMA_VERSION,
+            )
         );
     }
 } 

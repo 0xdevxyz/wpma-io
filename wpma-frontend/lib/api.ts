@@ -125,6 +125,12 @@ export const authApi = {
   
   refreshToken: () =>
     api.post<{ user: any; token: string }>('/api/v1/auth/refresh'),
+
+  updateProfile: (data: { firstName?: string; lastName?: string }) =>
+    api.put('/api/v1/auth/profile', data),
+
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.post('/api/v1/auth/change-password', data),
 };
 
 export const sitesApi = {
@@ -181,18 +187,37 @@ export const securityApi = {
 export const backupApi = {
   getBackups: (siteId: string) =>
     api.get(`/api/v1/backup/${siteId}`),
-  
+
   createBackup: (siteId: string, backupType: string = 'full') =>
     api.post(`/api/v1/backup/${siteId}`, { backupType }),
-  
+
   restoreBackup: (backupId: string, targetSiteId: string) =>
     api.post(`/api/v1/backup/${backupId}/restore`, { targetSiteId }),
-  
+
   deleteBackup: (backupId: string) =>
     api.delete(`/api/v1/backup/${backupId}`),
 
   downloadBackup: (backupId: string) =>
     api.get(`/api/v1/backup/${backupId}/download`),
+
+  // Schedule
+  getSchedule: (siteId: string) =>
+    api.get(`/api/v1/backup/${siteId}/schedule`),
+
+  setSchedule: (siteId: string, payload: {
+    scheduleType: string;
+    backupType?: string;
+    hour?: number;
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+  }) => api.post(`/api/v1/backup/${siteId}/schedule`, payload),
+
+  // Quota
+  getQuota: () =>
+    api.get(`/api/v1/backup/quota`),
+
+  upgradeQuota: () =>
+    api.post(`/api/v1/backup/quota/upgrade`, {}),
 };
 
 export const performanceApi = {
@@ -239,6 +264,25 @@ export const aiApi = {
 
   autoFix: (siteId: string, problem: string) =>
     api.post(`/api/v1/chat/${siteId}/auto-fix`, { problem }),
+};
+
+export const agentApi = {
+  getTasks: (params?: Record<string, string>) =>
+    api.get('/api/v1/agent/tasks', { params }),
+  getStats: () =>
+    api.get('/api/v1/agent/stats'),
+  approve: (id: number) =>
+    api.post(`/api/v1/agent/tasks/${id}/approve`),
+  reject: (id: number, reason: string) =>
+    api.post(`/api/v1/agent/tasks/${id}/reject`, { reason }),
+  getSettings: () =>
+    api.get('/api/v1/agent/settings'),
+  saveSettings: (s: any) =>
+    api.put('/api/v1/agent/settings', s),
+  scanSite: (siteId: string) =>
+    api.post(`/api/v1/agent/scan/${siteId}`),
+  scanAll: () =>
+    api.post('/api/v1/agent/scan-all'),
 };
 
 export const selfHealingApi = {
@@ -334,6 +378,30 @@ export const bulkApi = {
     forceUpdate?: boolean;
   }) =>
     api.post('/api/v1/bulk/updates', { siteIds, ...options }),
+
+  getUpdatesSummary: () =>
+    api.get('/api/v1/bulk/updates/summary'),
+
+  runBackups: (siteIds: number[], backupType = 'full') =>
+    api.post('/api/v1/bulk/backups', { siteIds, backupType }),
+
+  securityScan: (siteIds: number[]) =>
+    api.post('/api/v1/bulk/security/scan', { siteIds }),
+
+  installPlugin: (siteIds: number[], pluginSlug: string) =>
+    api.post('/api/v1/bulk/plugins/install', { siteIds, pluginSlug }),
+
+  deactivatePlugin: (siteIds: number[], pluginSlug: string) =>
+    api.post('/api/v1/bulk/plugins/deactivate', { siteIds, pluginSlug }),
+
+  getJobs: (limit = 20) =>
+    api.get(`/api/v1/bulk/jobs?limit=${limit}`),
+
+  getJobStatus: (jobId: string) =>
+    api.get(`/api/v1/bulk/jobs/${jobId}`),
+
+  cancelJob: (jobId: string) =>
+    api.delete(`/api/v1/bulk/jobs/${jobId}`),
 };
 
 export const syncApi = {
@@ -345,6 +413,9 @@ export const syncApi = {
 
   getSyncedData: (siteId: string) =>
     api.get(`/api/v1/sync/sites/${siteId}/synced-data`),
+
+  verifyPlugin: (siteId: string) =>
+    api.post(`/api/v1/sites/${siteId}/verify-plugin`),
 };
 
 export const paymentApi = {
@@ -359,6 +430,213 @@ export const paymentApi = {
 
   update: (planType: string) =>
     api.put('/api/v1/payment/update', { planType }),
+};
+
+export const contentApi = {
+  // Projects
+  listProjects: () =>
+    api.get('/api/v1/content/projects'),
+
+  createProject: (data: {
+    name: string;
+    type: string;
+    url?: string;
+    site_id?: number;
+    config?: Record<string, any>;
+    ip_whitelist?: string[];
+  }) =>
+    api.post('/api/v1/content/projects', data),
+
+  getProject: (id: number) =>
+    api.get(`/api/v1/content/projects/${id}`),
+
+  updateProject: (id: number, data: Partial<{ name: string; url: string; config: any; ip_whitelist: string[]; active: boolean }>) =>
+    api.put(`/api/v1/content/projects/${id}`, data),
+
+  deleteProject: (id: number) =>
+    api.delete(`/api/v1/content/projects/${id}`),
+
+  rotateToken: (id: number) =>
+    api.post(`/api/v1/content/projects/${id}/rotate-token`),
+
+  // Content generation
+  generateContent: (data: {
+    topic: string;
+    keywords?: string[];
+    language?: string;
+    tone?: string;
+    length?: string;
+    additional_instructions?: string;
+    project_id?: number;
+    save?: boolean;
+  }) =>
+    api.post('/api/v1/content/generate', data),
+
+  // Posts
+  listPosts: (params?: { project_id?: number; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.project_id) qs.set('project_id', String(params.project_id));
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return api.get(`/api/v1/content/posts${qs.toString() ? '?' + qs : ''}`);
+  },
+
+  createPost: (data: { project_id: number; title: string; content: string; excerpt?: string; keywords?: string[]; language?: string }) =>
+    api.post('/api/v1/content/posts', data),
+
+  getPost: (id: number) =>
+    api.get(`/api/v1/content/posts/${id}`),
+
+  updatePost: (id: number, data: Partial<{ title: string; content: string; excerpt: string; keywords: string[]; status: string }>) =>
+    api.put(`/api/v1/content/posts/${id}`, data),
+
+  deletePost: (id: number) =>
+    api.delete(`/api/v1/content/posts/${id}`),
+
+  // Media
+  searchMedia: (q: string, params?: { page?: number; per_page?: number; orientation?: string }) => {
+    const qs = new URLSearchParams({ q });
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    if (params?.orientation) qs.set('orientation', params.orientation);
+    return api.get(`/api/v1/content/media/search?${qs}`);
+  },
+
+  getCuratedMedia: (params?: { page?: number; per_page?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    return api.get(`/api/v1/content/media/curated${qs.toString() ? '?' + qs : ''}`);
+  },
+
+  attachMedia: (postId: number, media: any[]) =>
+    api.post(`/api/v1/content/posts/${postId}/media`, { media }),
+
+  removeMedia: (mediaId: number) =>
+    api.delete(`/api/v1/content/media/${mediaId}`),
+
+  // Publish
+  publishPost: (postId: number, projectId: number) =>
+    api.post(`/api/v1/content/publish/${postId}`, { project_id: projectId }),
+
+  listJobs: (params?: { post_id?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.post_id) qs.set('post_id', String(params.post_id));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return api.get(`/api/v1/content/track${qs.toString() ? '?' + qs : ''}`);
+  },
+
+  // Stats
+  getStats: () =>
+    api.get('/api/v1/content/stats'),
+};
+
+export const onboardingApi = {
+  getStatus: (siteId: string) =>
+    api.get(`/api/v1/onboarding/${siteId}`),
+
+  retry: (siteId: string) =>
+    api.post(`/api/v1/onboarding/${siteId}/retry`),
+
+  submitLicense: (siteId: string, pluginSlug: string, licenseKey: string) =>
+    api.post(`/api/v1/onboarding/${siteId}/license`, { pluginSlug, licenseKey }),
+
+  skipLicense: (siteId: string, pluginSlug: string) =>
+    api.post(`/api/v1/onboarding/${siteId}/license/skip`, { pluginSlug }),
+};
+
+export const lighthouseApi = {
+  run: (siteId: string) =>
+    api.post(`/api/v1/performance/${siteId}/lighthouse`),
+  get: (siteId: string) =>
+    api.get(`/api/v1/performance/${siteId}/lighthouse`),
+};
+
+export const revenueApi = {
+  getSummary: (siteId: string, days = 30) =>
+    api.get(`/api/v1/revenue/${siteId}/summary?days=${days}`),
+  getCorrelations: (siteId: string) =>
+    api.get(`/api/v1/revenue/${siteId}/correlations`),
+  getImpact: (siteId: string) =>
+    api.get(`/api/v1/revenue/${siteId}/impact`),
+  analyze: (siteId: string) =>
+    api.post(`/api/v1/revenue/${siteId}/analyze`),
+  resolveCorrelation: (siteId: string, corrId: number, action: string) =>
+    api.post(`/api/v1/revenue/${siteId}/correlations/${corrId}/resolve`, { action }),
+};
+
+export const whiteLabelApi = {
+  getConfig: () => api.get('/api/v1/white-label/config'),
+  saveConfig: (data: any) => api.post('/api/v1/white-label/config', data),
+};
+
+export const clientsApi = {
+  list: () => api.get('/api/v1/clients'),
+  create: (data: { name: string; email: string; password: string; notes?: string }) =>
+    api.post('/api/v1/clients', data),
+  update: (id: number, data: any) => api.put(`/api/v1/clients/${id}`, data),
+  remove: (id: number) => api.delete(`/api/v1/clients/${id}`),
+  getSites: (id: number) => api.get(`/api/v1/clients/${id}/sites`),
+  setSites: (id: number, siteIds: number[]) => api.post(`/api/v1/clients/${id}/sites`, { siteIds }),
+};
+
+export const clientPortalApi = {
+  login: (email: string, password: string) =>
+    api.post('/api/v1/client-portal/login', { email, password }),
+  me: () => api.get('/api/v1/client-portal/me'),
+  getSites: () => api.get('/api/v1/client-portal/sites'),
+};
+
+export const linksApi = {
+  scan: (siteId: string) => api.post(`/api/v1/links/${siteId}/scan`),
+  getLatest: (siteId: string) => api.get(`/api/v1/links/${siteId}/latest`),
+  getHistory: (siteId: string) => api.get(`/api/v1/links/${siteId}/history`),
+};
+
+export const stagingApi = {
+  // Staging environments
+  list: (siteId?: string) =>
+    api.get(`/api/v1/staging${siteId ? `?siteId=${siteId}` : ''}`),
+  create: (siteId: string, options?: { fromBackupId?: number }) =>
+    api.post(`/api/v1/staging/${siteId}/create`, options || {}),
+  remove: (stagingId: number) =>
+    api.delete(`/api/v1/staging/${stagingId}`),
+  // Push/Pull
+  push: (stagingId: number, options?: { includeDatabase?: boolean; includeFiles?: boolean; includeUploads?: boolean; createBackupFirst?: boolean }) =>
+    api.post(`/api/v1/staging/${stagingId}/push`, options || {}),
+  pull: (stagingId: number, options?: { includeDatabase?: boolean; includeUploads?: boolean }) =>
+    api.post(`/api/v1/staging/${stagingId}/pull`, options || {}),
+  getSyncJob: (jobId: number) =>
+    api.get(`/api/v1/staging/sync-job/${jobId}`),
+  // Clone
+  clone: (siteId: string, targetDomain: string, options?: { includeUploads?: boolean }) =>
+    api.post(`/api/v1/staging/${siteId}/clone`, { targetDomain, ...options }),
+  getCloneJob: (jobId: number) =>
+    api.get(`/api/v1/staging/clone-job/${jobId}`),
+  // Migration
+  migrate: (siteId: string, config: { targetUrl: string; newHosting?: string }) =>
+    api.post(`/api/v1/staging/${siteId}/migrate`, config),
+  getMigrationJob: (jobId: number) =>
+    api.get(`/api/v1/staging/migration-job/${jobId}`),
+};
+
+export const uptimeApi = {
+  getStats: (siteId: string, days = 30) =>
+    api.get(`/api/v1/uptime/${siteId}/stats?days=${days}`),
+  getHistory: (siteId: string, limit = 100) =>
+    api.get(`/api/v1/uptime/${siteId}/history?limit=${limit}`),
+  checkNow: (siteId: string) =>
+    api.post(`/api/v1/uptime/${siteId}/check`),
+};
+
+export const sslApi = {
+  getSiteSSL: (siteId: string) =>
+    api.get(`/api/v1/ssl/${siteId}`),
+  checkNow: (siteId: string) =>
+    api.post(`/api/v1/ssl/${siteId}/check`),
+  getAllSSL: () =>
+    api.get(`/api/v1/ssl`),
 };
 
 export default api;

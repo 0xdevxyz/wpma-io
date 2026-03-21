@@ -98,7 +98,7 @@ const initializeSentry = () => {
  * Muss VOR allen anderen Routes eingebunden werden
  */
 const sentryRequestHandler = () => {
-    if (!process.env.SENTRY_DSN) {
+    if (!process.env.SENTRY_DSN || !Sentry.Handlers) {
         return (req, res, next) => next();
     }
     return Sentry.Handlers.requestHandler();
@@ -109,7 +109,7 @@ const sentryRequestHandler = () => {
  * Muss VOR allen anderen Routes eingebunden werden
  */
 const sentryTracingHandler = () => {
-    if (!process.env.SENTRY_DSN) {
+    if (!process.env.SENTRY_DSN || !Sentry.Handlers) {
         return (req, res, next) => next();
     }
     return Sentry.Handlers.tracingHandler();
@@ -120,7 +120,7 @@ const sentryTracingHandler = () => {
  * Muss NACH allen Routes aber VOR dem Error-Handler eingebunden werden
  */
 const sentryErrorHandler = () => {
-    if (!process.env.SENTRY_DSN) {
+    if (!process.env.SENTRY_DSN || !Sentry.Handlers) {
         return (err, req, res, next) => next(err);
     }
     return Sentry.Handlers.errorHandler({

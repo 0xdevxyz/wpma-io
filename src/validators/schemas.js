@@ -105,21 +105,18 @@ const sitesSchemas = {
                 'string.empty': 'Domain ist erforderlich',
                 'string.pattern.base': 'Ungültige Domain (z.B. example.com)'
             }),
-        siteUrl: Joi.string()
-            .uri({ scheme: ['http', 'https'] })
-            .required()
-            .messages({
-                'string.uri': 'Ungültige URL (muss mit http:// oder https:// beginnen)'
-            }),
-        siteName: Joi.string()
-            .trim()
-            .max(255)
-            .optional()
-    }),
+        // Frontend sendet snake_case; beide Varianten akzeptieren
+        site_url: Joi.string().uri({ scheme: ['http', 'https'] }).optional(),
+        siteUrl: Joi.string().uri({ scheme: ['http', 'https'] }).optional(),
+        site_name: Joi.string().trim().max(255).optional(),
+        siteName: Joi.string().trim().max(255).optional(),
+    }).or('site_url', 'siteUrl'),
 
     update: Joi.object({
         siteName: Joi.string().trim().max(255).optional(),
+        site_name: Joi.string().trim().max(255).optional(),
         siteUrl: Joi.string().uri({ scheme: ['http', 'https'] }).optional(),
+        site_url: Joi.string().uri({ scheme: ['http', 'https'] }).optional(),
         status: Joi.string().valid('active', 'inactive', 'maintenance').optional()
     }),
 

@@ -3,6 +3,7 @@
  * WPMA Admin - Nur für Scripts/Styles laden
  * Menü-Registrierung erfolgt in class-wpma-core.php
  */
+if (class_exists('WPMA_Admin')) return;
 
 class WPMA_Admin {
     

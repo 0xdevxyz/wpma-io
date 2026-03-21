@@ -1,6 +1,28 @@
 -- Migration 002: Fehlende Tabellen
 -- Erstellt alle Tabellen die im Code referenziert werden aber in keiner Migration existieren
 
+-- Fehlende Spalten in users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+
+-- Fehlende Spalten in sites (health, performance, WP-Metadaten)
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS health_score INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS last_check TIMESTAMP;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS wordpress_version VARCHAR(20);
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS php_version VARCHAR(20);
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS is_wordpress BOOLEAN DEFAULT true;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS security_score INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS performance_score INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS uptime_percentage DECIMAL(5,2) DEFAULT 100.00;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS last_backup TIMESTAMP;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS last_security_scan TIMESTAMP;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS plugin_count INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS active_plugins INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS inactive_plugins INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS update_count INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS plugins_updates INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS themes_updates INTEGER DEFAULT 0;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS core_update_available BOOLEAN DEFAULT false;
+
 -- site_updates & update_logs (src/routes/updates.js)
 CREATE TABLE IF NOT EXISTS site_updates (
     id SERIAL PRIMARY KEY,

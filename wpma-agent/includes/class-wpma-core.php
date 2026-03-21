@@ -1,4 +1,5 @@
 <?php
+if (class_exists('WPMA_Core')) return;
 
 class WPMA_Core {
     

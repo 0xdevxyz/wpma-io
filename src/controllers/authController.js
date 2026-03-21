@@ -218,6 +218,47 @@ class AuthController {
             });
         }
     }
+    // PUT /api/v1/auth/profile
+    async updateProfile(req, res) {
+        try {
+            const { userId } = req.user;
+            const { firstName, lastName } = req.body;
+            if (!firstName && !lastName) {
+                return res.status(400).json({ success: false, error: 'Kein Feld zum Aktualisieren' });
+            }
+            await query(
+                `UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name), updated_at = NOW() WHERE id = $3`,
+                [firstName || null, lastName || null, userId]
+            );
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
+    // POST /api/v1/auth/change-password
+    async changePassword(req, res) {
+        try {
+            const { userId } = req.user;
+            const { currentPassword, newPassword } = req.body;
+            if (!currentPassword || !newPassword) {
+                return res.status(400).json({ success: false, error: 'Alle Felder erforderlich' });
+            }
+            if (newPassword.length < 8) {
+                return res.status(400).json({ success: false, error: 'Mindestens 8 Zeichen' });
+            }
+            const result = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+            if (!result.rows[0]) return res.status(404).json({ success: false, error: 'Nutzer nicht gefunden' });
+            const valid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+            if (!valid) return res.status(400).json({ success: false, error: 'Aktuelles Passwort falsch' });
+            const hash = await bcrypt.hash(newPassword, 12);
+            await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, userId]);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
     // POST /api/v1/auth/logout
     async logout(req, res) {
         try {

@@ -1,57 +1,21 @@
-const OpenAI = require('openai');
-const Anthropic = require('@anthropic-ai/sdk');
+const { chat, getStatus } = require('./llmService');
 const { query } = require('../config/database');
 
 class AIService {
     constructor() {
-        // OpenRouter für OpenAI-kompatible Modelle
-        const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-        if (openRouterKey) {
-            this.openai = new OpenAI({
-                baseURL: "https://openrouter.ai/api/v1",
-                apiKey: openRouterKey,
-            });
-        }
-        
-        // Anthropic Claude für bessere Analyse
-        const anthropicKey = process.env.ANTHROPIC_API_KEY;
-        if (anthropicKey) {
-            this.anthropic = new Anthropic({ apiKey: anthropicKey });
-        }
-        
-        this.isConfigured = Boolean(openRouterKey || anthropicKey);
-        this.preferredModel = anthropicKey ? 'claude' : 'openai';
-        
-        console.log(`AI Service initialized. Provider: ${this.preferredModel}, Configured: ${this.isConfigured}`);
+        const status = getStatus();
+        this.isConfigured = status.groq || status.anthropic || status.openrouter;
+        console.log(`AI Service initialized. Primary: ${status.primary}, Configured: ${this.isConfigured}`);
     }
 
-    // Hauptmethode für KI-Analyse - wählt automatisch das beste Modell
+    // Hauptmethode für KI-Analyse — Groq → Anthropic → OpenRouter
     async analyze(prompt, systemPrompt, maxTokens = 1000) {
         if (!this.isConfigured) {
             return this.getFallbackAnalysis(prompt);
         }
 
         try {
-            if (this.preferredModel === 'claude' && this.anthropic) {
-                const response = await this.anthropic.messages.create({
-                    model: 'claude-3-haiku-20240307',
-                    max_tokens: maxTokens,
-                    system: systemPrompt,
-                    messages: [{ role: 'user', content: prompt }]
-                });
-                return response.content[0].text;
-            } else if (this.openai) {
-                const response = await this.openai.chat.completions.create({
-                    model: 'gpt-4-turbo-preview',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: prompt }
-                    ],
-                    max_tokens: maxTokens,
-                    temperature: 0.3
-                });
-                return response.choices[0].message.content;
-            }
+            return await chat({ system: systemPrompt, prompt, model: 'fast', maxTokens });
         } catch (error) {
             console.error('AI Analysis error:', error.message);
             return this.getFallbackAnalysis(prompt);

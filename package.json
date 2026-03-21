@@ -25,6 +25,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
     "@sentry/node": "^9.36.0",
+    "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.10.0",
@@ -43,6 +44,7 @@
     "node-cron": "^4.2.0",
     "nodemailer": "^8.0.1",
     "openai": "^5.8.3",
+    "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
     "redis": "^5.6.0",
     "socket.io": "^4.7.2",

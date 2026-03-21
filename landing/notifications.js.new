@@ -1,0 +1,44 @@
+/** Notifications Routes */
+const express = require('express');
+const router = express.Router();
+const { authenticateToken } = require('../middleware/auth');
+const NotificationService = require('../services/notificationService');
+router.use(authenticateToken);
+
+router.get('/settings', async (req,res) => {
+    try {
+        const u = req.user && (req.user.userId || req.user.id);
+        const s = await NotificationService.getUserNotificationSettings(u);
+        res.json({success:true,data:s||{channels:{},enabledEvents:[]}});
+    } catch(e) { res.status(500).json({success:false,error:e.message}); }
+});
+
+router.post('/settings', async (req,res) => {
+    try {
+        const u = req.user && (req.user.userId || req.user.id);
+        const r = await NotificationService.saveNotificationSettings(u, req.body);
+        res.json(r);
+    } catch(e) { res.status(500).json({success:false,error:e.message}); }
+});
+
+router.put('/settings', async (req,res) => {
+    try {
+        const u = req.user && (req.user.userId || req.user.id);
+        const { discord_webhook, telegram_chat_id } = req.body;
+        const { query } = require('../config/database');
+        await query(`UPDATE users SET discord_webhook=$1,telegram_chat_id=$2,updated_at=NOW() WHERE id=$3`, [discord_webhook||null, telegram_chat_id||null, u]);
+        res.json({success:true});
+    } catch(err) { res.status(500).json({success:false,error:err.message}); }
+});
+
+router.get('/event-types', async (req,res) => { res.json({success:true,data:NotificationService.getAvailableEventTypes()}); });
+
+router.post('/test', async (req,res) => { try { const {channelType,config}=req.body; if(!channelType||!config) return res.status(400).json({success:false}); const r=await NotificationService.testChannel(channelType,config); res.json(r); } catch(e) { res.status(500).json({success:false,error:e.message}); } });
+
+router.get('/history', async (req,res) => { try { const u=req.user&&(req.user.userId||req.user.id); const l=parseInt(req.query.limit)||50; const r=await NotificationService.getNotificationHistory(u,l); res.json(r); } catch(e) { res.status(500).json({success:false,error:e.message}); } });
+
+router.post('/send-test', async (req,res) => { try { const u=req.user&&(req.user.userId||req.user.id); const r=await NotificationService.notify(u,'test',{domain:'test.example.com'}); res.json(r); } catch(e) { res.status(500).json({success:false,error:e.message}); } });
+
+router.post('/webhook/zapier', async (req,res) => { res.json({success:true,message:'ok'}); });
+
+module.exports = router;

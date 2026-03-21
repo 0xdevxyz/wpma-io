@@ -1,28 +1,26 @@
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Package files kopieren
 COPY package*.json ./
+RUN npm ci
 
-# Dependencies installieren
-RUN npm install
-
-# Alles kopieren
 COPY . .
-
-# Build
 RUN npm run build
 
-# User erstellen
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-RUN chown -R nextjs:nodejs /app
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
 USER nextjs
 
 EXPOSE 3000
 ENV PORT 3000
 ENV NODE_ENV production
 
-# Use standard next start for proper CSS loading
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

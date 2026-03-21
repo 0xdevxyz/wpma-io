@@ -1,4 +1,5 @@
 <?php
+if (class_exists('WPMA_Performance')) return;
 
 class WPMA_Performance {
     
