@@ -143,7 +143,8 @@ class BackupService {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-WPMA-API-Key': site.api_key
+                    'X-WPMA-API-Key': site.api_key,
+                    'User-Agent': 'WPMA-Platform/1.0'
                 },
                 body: JSON.stringify({
                     backup_type: backupType,
@@ -706,6 +707,48 @@ class BackupService {
                 success: false,
                 error: error.message
             };
+        }
+    }
+
+    async getDownloadUrl(backupId) {
+        try {
+            const result = await query(
+                'SELECT id, s3_url, backup_type, provider FROM backups WHERE id = $1',
+                [backupId]
+            );
+
+            if (result.rows.length === 0) {
+                return { success: false, error: 'Backup nicht gefunden' };
+            }
+
+            const backup = result.rows[0];
+            if (!backup.s3_url) {
+                return { success: false, error: 'Keine Download-URL verfügbar' };
+            }
+
+            const provider = backup.provider || this.defaultProvider;
+            const { client: s3, bucket } = this.getS3Client(provider);
+            const fileName = path.basename(backup.s3_url);
+
+            const params = {
+                Bucket: bucket,
+                Key: `backups/${fileName}`,
+                Expires: 900
+            };
+
+            const url = await s3.getSignedUrlPromise('getObject', params);
+
+            return {
+                success: true,
+                data: {
+                    downloadUrl: url,
+                    fileName,
+                    expiresIn: 900
+                }
+            };
+        } catch (error) {
+            console.error('Error generating download URL:', error);
+            return { success: false, error: error.message };
         }
     }
 }

@@ -369,20 +369,19 @@ class AutoUpdateService {
      */
     async setAutoUpdateSettings(siteId, settings) {
         try {
-            const { enabled, updateCore, updatePlugins, updateThemes, schedule } = settings;
+            const { autoUpdate, schedule } = settings;
 
             await query(
-                `INSERT INTO site_settings (site_id, setting_key, setting_value)
-                 VALUES ($1, 'auto_update', $2)
-                 ON CONFLICT (site_id, setting_key) 
-                 DO UPDATE SET setting_value = $2, updated_at = CURRENT_TIMESTAMP`,
-                [siteId, JSON.stringify({
-                    enabled,
-                    updateCore,
-                    updatePlugins,
-                    updateThemes,
-                    schedule
-                })]
+                `INSERT INTO site_settings (site_id, auto_update_core, auto_update_plugins, auto_update_themes, auto_update_schedule)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (site_id) 
+                 DO UPDATE SET 
+                    auto_update_core = $2,
+                    auto_update_plugins = $3,
+                    auto_update_themes = $4,
+                    auto_update_schedule = $5,
+                    updated_at = CURRENT_TIMESTAMP`,
+                [siteId, autoUpdate?.core || false, autoUpdate?.plugins || false, autoUpdate?.themes || false, schedule || 'weekly']
             );
 
             return { success: true, message: 'Auto-Update Einstellungen gespeichert' };
@@ -398,8 +397,9 @@ class AutoUpdateService {
     async getAutoUpdateSettings(siteId) {
         try {
             const result = await query(
-                `SELECT setting_value FROM site_settings 
-                 WHERE site_id = $1 AND setting_key = 'auto_update'`,
+                `SELECT auto_update_core, auto_update_plugins, auto_update_themes, auto_update_schedule 
+                 FROM site_settings 
+                 WHERE site_id = $1`,
                 [siteId]
             );
 
@@ -407,18 +407,27 @@ class AutoUpdateService {
                 return {
                     success: true,
                     data: {
-                        enabled: false,
-                        updateCore: false,
-                        updatePlugins: true,
-                        updateThemes: true,
+                        autoUpdate: {
+                            core: false,
+                            plugins: false,
+                            themes: false
+                        },
                         schedule: 'weekly'
                     }
                 };
             }
 
+            const settings = result.rows[0];
             return {
                 success: true,
-                data: JSON.parse(result.rows[0].setting_value)
+                data: {
+                    autoUpdate: {
+                        core: settings.auto_update_core,
+                        plugins: settings.auto_update_plugins,
+                        themes: settings.auto_update_themes
+                    },
+                    schedule: settings.auto_update_schedule
+                }
             };
         } catch (error) {
             console.error('Get auto update settings error:', error);

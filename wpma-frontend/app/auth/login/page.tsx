@@ -44,17 +44,21 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Benutzername
+                E-Mail-Adresse
               </label>
               <input
                 {...register('email', {
-                  required: 'Benutzername ist erforderlich',
+                  required: 'E-Mail-Adresse ist erforderlich',
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: 'Bitte gib eine gültige E-Mail-Adresse ein',
+                  },
                 })}
-                type="text"
+                type="email"
                 className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Benutzername"
+                placeholder="deine@email.de"
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -105,13 +109,22 @@ export default function LoginPage() {
             </button>
           </form>
           
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-3">
             <button
               onClick={() => router.push('/auth/forgot-password')}
-              className="text-sm text-gray-600 hover:text-gray-900 underline"
+              className="text-sm text-gray-600 hover:text-gray-900 underline block w-full"
             >
               Zugangsdaten vergessen?
             </button>
+            <p className="text-sm text-gray-600">
+              Noch kein Konto?{' '}
+              <button
+                onClick={() => router.push('/auth/register')}
+                className="text-gray-900 hover:text-gray-700 underline font-medium"
+              >
+                Jetzt registrieren
+              </button>
+            </p>
           </div>
         </div>
       </div>

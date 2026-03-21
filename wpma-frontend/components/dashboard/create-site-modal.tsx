@@ -96,8 +96,8 @@ export const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClos
     try {
       const response = await sitesApi.createSite({
         domain: metadata.domain,
-        site_name: metadata.siteName,
-        site_url: metadata.siteUrl
+        siteName: metadata.siteName,
+        siteUrl: metadata.siteUrl
       });
 
       if (response.success) {

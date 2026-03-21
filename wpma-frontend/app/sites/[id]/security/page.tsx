@@ -238,6 +238,25 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           </div>
         </div>
       )}
+      {/* Compliance-Hinweis */}
+      {securityScore < 80 && (
+        <Card className="p-5 border-indigo-200 bg-indigo-50 mt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-indigo-900">DSGVO, Cookies & Datenschutz vollständig abgesichert?</p>
+              <p className="text-xs text-indigo-700 mt-0.5">Complyo prüft automatisch Ihre Compliance-Pflichten und erstellt rechtssichere Dokumente.</p>
+            </div>
+            <a
+              href="https://complyo.de"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-4 shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Zu Complyo →
+            </a>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

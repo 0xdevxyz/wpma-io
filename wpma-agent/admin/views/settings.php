@@ -56,7 +56,7 @@ $connection_status = $api_client->test_connection($api_key);
             <tr>
                 <th scope="row">Verbindungsstatus</th>
                 <td>
-                    <?php if ($api_key && $connection_status['success']): ?>
+                    <?php if ($api_key && isset($connection_status['status']) && $connection_status['status'] === 'healthy'): ?>
                         <span class="dashicons dashicons-yes-alt" style="color: green;"></span>
                         <span style="color: green;">Verbunden mit WPMA.io</span>
                     <?php elseif ($api_key): ?>

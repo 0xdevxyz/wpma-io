@@ -46,7 +46,29 @@ class PerformanceService {
             );
 
             if (result.rows.length === 0) {
-                return { success: false, error: 'Keine Performance-Daten verfügbar' };
+                // Return mock data for new sites
+                return { 
+                    success: true, 
+                    data: {
+                        id: null,
+                        siteId: siteId,
+                        pageLoadTime: 0,
+                        memoryUsage: 0,
+                        memoryUsageMB: 0,
+                        dbSize: 0,
+                        databaseQueries: 0,
+                        databaseSize: 0,
+                        cacheHitRatio: 0,
+                        ttfb: 0,
+                        lcp: 0,
+                        fid: 0,
+                        cls: 0,
+                        coreWebVitals: {},
+                        performanceScore: 0,
+                        createdAt: new Date(),
+                        message: 'Keine Daten verfügbar - Plugin noch nicht verbunden'
+                    }
+                };
             }
 
             const row = result.rows[0];
@@ -56,15 +78,14 @@ class PerformanceService {
                 : (row.core_web_vitals || {});
 
             // Konvertiere zu camelCase für Frontend
-            const memoryBytes = parseInt(row.memory_usage) || 0;
-            const dbBytes = parseInt(row.db_size || row.database_size) || 0;
+            const dbBytes = parseInt(row.database_size) || 0;
             
             const data = {
                 id: row.id,
                 siteId: row.site_id,
                 pageLoadTime: Math.round(parseFloat(row.page_load_time) || 0),
-                memoryUsage: memoryBytes,  // In Bytes für Frontend-Konvertierung
-                memoryUsageMB: Math.round(memoryBytes / 1024 / 1024),  // Bereits in MB
+                memoryUsage: 0,
+                memoryUsageMB: 0,
                 dbSize: dbBytes,
                 databaseQueries: row.database_queries || 0,
                 databaseSize: Math.round(dbBytes / 1024 / 1024),  // In MB für direkte Anzeige
@@ -129,7 +150,12 @@ class PerformanceService {
             if (metric.page_load_time) grouped[hour].page_load_times.push(parseFloat(metric.page_load_time));
             if (metric.database_queries) grouped[hour].database_queries.push(metric.database_queries);
             if (metric.cache_hit_ratio) grouped[hour].cache_hit_ratios.push(parseFloat(metric.cache_hit_ratio));
-            if (metric.core_web_vitals) grouped[hour].core_web_vitals.push(metric.core_web_vitals);
+            if (metric.core_web_vitals) {
+                const vitals = typeof metric.core_web_vitals === 'string'
+                    ? (() => { try { return JSON.parse(metric.core_web_vitals); } catch { return null; } })()
+                    : metric.core_web_vitals;
+                if (vitals) grouped[hour].core_web_vitals.push(vitals);
+            }
         });
 
         return Object.values(grouped).map(group => ({
@@ -173,8 +199,8 @@ class PerformanceService {
         }
 
         if (metrics.core_web_vitals) {
-            const vitals = typeof metrics.core_web_vitals === 'string' 
-                ? JSON.parse(metrics.core_web_vitals) 
+            const vitals = typeof metrics.core_web_vitals === 'string'
+                ? (() => { try { return JSON.parse(metrics.core_web_vitals); } catch { return {}; } })()
                 : metrics.core_web_vitals;
 
             if (vitals.lcp) {
@@ -215,29 +241,29 @@ class PerformanceService {
             const metrics = currentResult.data;
             const recommendations = [];
 
-            if (metrics.page_load_time && metrics.page_load_time > 2000) {
+            if (metrics.pageLoadTime && metrics.pageLoadTime > 2000) {
                 recommendations.push({
                     category: 'performance',
-                    priority: metrics.page_load_time > 3000 ? 'high' : 'medium',
+                    priority: metrics.pageLoadTime > 3000 ? 'high' : 'medium',
                     title: 'Langsame Ladezeit',
-                    description: `Die Seitenladezeit beträgt ${(metrics.page_load_time / 1000).toFixed(2)}s. Empfohlen sind unter 2s.`,
+                    description: `Die Seitenladezeit beträgt ${(metrics.pageLoadTime / 1000).toFixed(2)}s. Empfohlen sind unter 2s.`,
                     actions: ['Bilder optimieren', 'Caching aktivieren', 'CSS/JS minimieren', 'CDN verwenden']
                 });
             }
 
-            if (metrics.database_queries && metrics.database_queries > 50) {
+            if (metrics.databaseQueries && metrics.databaseQueries > 50) {
                 recommendations.push({
                     category: 'database',
-                    priority: metrics.database_queries > 100 ? 'high' : 'medium',
+                    priority: metrics.databaseQueries > 100 ? 'high' : 'medium',
                     title: 'Zu viele Datenbankabfragen',
-                    description: `${metrics.database_queries} Queries pro Seite. Empfohlen: unter 50`,
+                    description: `${metrics.databaseQueries} Queries pro Seite. Empfohlen: unter 50`,
                     actions: ['Object Caching aktivieren', 'Queries optimieren', 'Plugin-Anzahl reduzieren']
                 });
             }
 
             return {
                 success: true,
-                data: { metrics, recommendations, performance_score: metrics.performance_score }
+                data: { metrics, recommendations, performance_score: metrics.performanceScore }
             };
         } catch (error) {
             console.error('Error analyzing performance:', error);
