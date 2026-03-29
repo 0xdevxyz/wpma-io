@@ -17,6 +17,19 @@
 
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
+const { logger } = require('../utils/logger');
+
+const _providerStats = { groq: 0, anthropic: 0, openrouter: 0, failures: 0 };
+
+function _trackSuccess(provider) {
+    _providerStats[provider]++;
+    logger.debug('[LLM] Provider used', { provider, totalCalls: _providerStats[provider] });
+}
+
+function _trackFailure(provider, err) {
+    _providerStats.failures++;
+    logger.warn('[LLM] Provider failed', { provider, error: err.message, totalFailures: _providerStats.failures });
+}
 
 // ─── Clients ─────────────────────────────────────────────────────────────────
 
@@ -96,10 +109,11 @@ async function chat({ prompt, system = '', model = 'fast', maxTokens = 1024 }) {
                 max_tokens: maxTokens,
                 temperature: 0.3,
             });
+            _trackSuccess('groq');
             return res.choices[0]?.message?.content || '';
         } catch (err) {
             errors.push(`Groq: ${err.message}`);
-            console.warn('[LLM] Groq failed, falling back:', err.message);
+            _trackFailure('groq', err);
         }
     }
 
@@ -113,10 +127,11 @@ async function chat({ prompt, system = '', model = 'fast', maxTokens = 1024 }) {
                 system: system || undefined,
                 messages: [{ role: 'user', content: prompt }],
             });
+            _trackSuccess('anthropic');
             return res.content[0]?.text || '';
         } catch (err) {
             errors.push(`Anthropic: ${err.message}`);
-            console.warn('[LLM] Anthropic failed, falling back:', err.message);
+            _trackFailure('anthropic', err);
         }
     }
 
@@ -133,12 +148,15 @@ async function chat({ prompt, system = '', model = 'fast', maxTokens = 1024 }) {
                 messages,
                 max_tokens: maxTokens,
             });
+            _trackSuccess('openrouter');
             return res.choices[0]?.message?.content || '';
         } catch (err) {
             errors.push(`OpenRouter: ${err.message}`);
+            _trackFailure('openrouter', err);
         }
     }
 
+    logger.error('[LLM] All providers failed', { errors, model });
     throw new Error(`Alle LLM-Provider fehlgeschlagen: ${errors.join(' | ')}`);
 }
 
@@ -158,7 +176,7 @@ async function chatJSON(opts) {
 }
 
 /**
- * Returns which providers are configured
+ * Returns which providers are configured and runtime usage stats
  */
 function getStatus() {
     return {
@@ -167,6 +185,7 @@ function getStatus() {
         openrouter:  !!process.env.OPENROUTER_API_KEY,
         primary:     process.env.GROQ_API_KEY ? 'groq' :
                      process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openrouter',
+        stats:       { ..._providerStats },
     };
 }
 

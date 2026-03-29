@@ -83,7 +83,8 @@ function TaskCard({ task, onApprove, onReject, approving, highlight }: {
   const status = STATUS_CONFIG[task.status] || STATUS_CONFIG.detected;
   const StatusIcon = status.icon;
   const CatIcon = CAT_ICON[task.category] || Sparkles;
-  const plan = task.action_plan || task.actions || [];
+  const plan = Array.isArray(task.action_plan) ? task.action_plan : Array.isArray(task.actions) ? task.actions : [];
+  const execLog = Array.isArray(task.execution_log) ? task.execution_log : [];
   const isPending = task.status === 'awaiting_approval';
   const isRunning = task.status === 'analyzing' || task.status === 'executing';
   const isDone = task.status === 'done';
@@ -134,9 +135,9 @@ function TaskCard({ task, onApprove, onReject, approving, highlight }: {
                 · {new Date(task.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
-            {isDone && task.execution_log?.length > 0 && (
+            {isDone && execLog.length > 0 && (
               <span className="text-[11px] text-green-600 dark:text-green-400">
-                · {task.execution_log.filter(l => l.status === 'done').map(l => l.label).join(', ')}
+                · {execLog.filter(l => l.status === 'done').map(l => l.label).join(', ')}
               </span>
             )}
           </div>
@@ -207,10 +208,10 @@ function TaskCard({ task, onApprove, onReject, approving, highlight }: {
                 <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200 dark:bg-white/[0.06]" />
                 <div className="space-y-3">
                   {plan.map((step, i) => {
-                    const execStep = task.execution_log?.find(l => l.step === step.step);
+                    const execStep = execLog.find(l => l.step === step.step);
                     const isDoneStep = execStep?.status === 'done';
                     const isFailedStep = execStep?.status === 'failed';
-                    const isActiveStep = task.status === 'executing' && !isDoneStep && !isFailedStep && i === (task.execution_log?.filter(l => l.status === 'done').length || 0);
+                    const isActiveStep = task.status === 'executing' && !isDoneStep && !isFailedStep && i === execLog.filter(l => l.status === 'done').length;
                     return (
                       <div key={i} className="flex items-start gap-3 pl-0">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 z-10 border-2

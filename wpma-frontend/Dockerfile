@@ -1,14 +1,14 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Copy pre-installed node_modules from host (avoids npm registry during build)
 COPY package*.json ./
-RUN npm ci
-
+COPY node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN node_modules/.bin/next build
 
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 

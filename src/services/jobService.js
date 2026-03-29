@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const axios = require('axios');
 const { client: redis } = require('../config/redis');
 const { query } = require('../config/database');
+const { logger } = require('../utils/logger');
 const monitoringService = require('./monitoringService');
 const performanceService = require('./performanceService');
 const securityService = require('./securityService');
@@ -11,32 +12,46 @@ const backupService = require('./backupService');
 class JobService {
     constructor() {
         this.jobs = [];
+        this.failedJobCounts = {};
     }
-    
+
+    _recordFailure(jobName, error) {
+        this.failedJobCounts[jobName] = (this.failedJobCounts[jobName] || 0) + 1;
+        logger.error(`[Job] ${jobName} failed (total failures: ${this.failedJobCounts[jobName]})`, {
+            job: jobName,
+            error: error?.message || String(error),
+            totalFailures: this.failedJobCounts[jobName],
+        });
+    }
+
+    _resetFailures(jobName) {
+        this.failedJobCounts[jobName] = 0;
+    }
+
     async startBackgroundJobs() {
-        console.log('Starting background jobs...');
-        
+        logger.info('Starting background jobs...');
+
         // Uptime monitoring - every 5 minutes
         this.jobs.push(
             cron.schedule('*/5 * * * *', () => {
                 this.runUptimeChecks();
             })
         );
-        
+
         // Performance cleanup - every 30 minutes
         this.jobs.push(
             cron.schedule('*/30 * * * *', () => {
                 this.runPerformanceChecks();
             })
         );
-        
+
         // Security scan job - daily at 2 AM
         this.jobs.push(
             cron.schedule('0 2 * * *', () => {
                 this.runSecurityScans();
             })
         );
-        
+
         // Cleanup old data - daily at 4 AM
         this.jobs.push(
             cron.schedule('0 4 * * *', () => {
@@ -68,68 +83,78 @@ class JobService {
             })
         );
 
-        console.log('Background jobs started successfully');
+        logger.info('Background jobs started successfully');
     }
-    
+
     async runUptimeChecks() {
+        const jobName = 'uptimeChecks';
         try {
-            console.log('[Job] Running uptime checks...');
+            logger.debug('[Job] Running uptime checks...');
             const result = await query(
                 'SELECT id FROM sites WHERE status = $1 LIMIT 50',
                 ['active']
             );
-            
+
             for (const site of result.rows) {
                 await monitoringService.checkUptime(site.id);
             }
-            
-            console.log(`[Job] Checked uptime for ${result.rows.length} sites`);
+
+            this._resetFailures(jobName);
+            logger.info(`[Job] Uptime checks completed`, { sitesChecked: result.rows.length });
         } catch (error) {
-            console.error('[Job] Uptime check error:', error);
+            this._recordFailure(jobName, error);
         }
     }
-    
+
     async runPerformanceChecks() {
+        const jobName = 'performanceChecks';
         try {
-            console.log('[Job] Running performance checks...');
+            logger.debug('[Job] Running performance checks...');
             await performanceService.cleanupOldMetrics();
+            this._resetFailures(jobName);
+            logger.debug('[Job] Performance checks completed');
         } catch (error) {
-            console.error('[Job] Performance check error:', error);
+            this._recordFailure(jobName, error);
         }
     }
-    
+
     async runSecurityScans() {
+        const jobName = 'securityScans';
         try {
-            console.log('[Job] Running security scans...');
+            logger.debug('[Job] Running security scans...');
             const result = await query(
                 'SELECT id FROM sites WHERE status = $1 LIMIT 50',
                 ['active']
             );
-            
+
             for (const site of result.rows) {
                 await securityService.performScan(site.id);
             }
-            
-            console.log(`[Job] Scanned ${result.rows.length} sites`);
+
+            this._resetFailures(jobName);
+            logger.info('[Job] Security scans completed', { sitesScanned: result.rows.length });
         } catch (error) {
-            console.error('[Job] Security scan error:', error);
+            this._recordFailure(jobName, error);
         }
     }
-    
+
     async runCleanup() {
+        const jobName = 'cleanup';
         try {
-            console.log('[Job] Running cleanup...');
+            logger.debug('[Job] Running cleanup...');
             await performanceService.cleanupOldMetrics();
             await securityService.cleanupOldScans();
-            console.log('[Job] Cleanup completed');
+            this._resetFailures(jobName);
+            logger.info('[Job] Cleanup completed');
         } catch (error) {
-            console.error('[Job] Cleanup error:', error);
+            this._recordFailure(jobName, error);
         }
     }
-    
+
     async runPullHealthChecks() {
+        const jobName = 'pullHealthChecks';
         try {
-            console.log('[Job] Pulling health data from connected WordPress sites...');
+            logger.debug('[Job] Pulling health data from connected WordPress sites...');
 
             const result = await query(
                 `SELECT id, domain, site_url, api_key
@@ -174,19 +199,25 @@ class JobService {
                 }
             }
 
-            console.log(`[Job] Pull health checks done: ${synced} synced, ${failed} failed`);
+            this._resetFailures(jobName);
+            logger.info('[Job] Pull health checks done', { synced, failed });
         } catch (error) {
-            console.error('[Job] Pull health check error:', error.message);
+            this._recordFailure(jobName, error);
         }
     }
 
     async runSslChecks() {
+        const jobName = 'sslChecks';
         try {
-            console.log('[Job] Running SSL certificate checks...');
+            logger.debug('[Job] Running SSL certificate checks...');
             const { summary } = await sslService.checkAllSites();
-            console.log(`[Job] SSL checks done — valid: ${summary.valid}, warning: ${summary.warning}, critical: ${summary.critical}, expired: ${summary.expired}`);
+            logger.info('[Job] SSL checks done', {
+                valid: summary.valid,
+                warning: summary.warning,
+                critical: summary.critical,
+                expired: summary.expired,
+            });
 
-            // Benachrichtigung bei kritischen/abgelaufenen Zertifikaten
             if (summary.critical > 0 || summary.expired > 0) {
                 const criticalSites = await query(
                     `SELECT s.domain, sc.days_remaining, sc.status
@@ -195,17 +226,23 @@ class JobService {
                      ORDER BY sc.days_remaining ASC`
                 );
                 for (const site of criticalSites.rows) {
-                    console.warn(`[SSL] KRITISCH: ${site.domain} — ${site.days_remaining} Tage verbleibend (${site.status})`);
+                    logger.warn('[SSL] Critical certificate', {
+                        domain: site.domain,
+                        daysRemaining: site.days_remaining,
+                        status: site.status,
+                    });
                 }
             }
+
+            this._resetFailures(jobName);
         } catch (error) {
-            console.error('[Job] SSL check error:', error.message);
+            this._recordFailure(jobName, error);
         }
     }
 
     stopAllJobs() {
         this.jobs.forEach(job => job.stop());
-        console.log('All background jobs stopped');
+        logger.info('All background jobs stopped');
     }
 }
 
@@ -218,4 +255,4 @@ const startBackgroundJobs = async () => {
 module.exports = {
     startBackgroundJobs,
     jobService
-}; 
+};

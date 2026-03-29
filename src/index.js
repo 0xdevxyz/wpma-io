@@ -57,6 +57,13 @@ const onboardingRoutes = require('./routes/onboarding');
 const clientPortalRoutes = require('./routes/clientPortal');
 const linksRoutes = require('./routes/links');
 const sslRoutes = require('./routes/ssl');
+const pluginsRoutes = require('./routes/plugins');
+const themesRoutes = require('./routes/themes');
+const vulnerabilitiesRoutes = require('./routes/vulnerabilities');
+const selfHealingRoutes = require('./routes/selfhealing');
+const wpUsersRoutes = require('./routes/wpUsers');
+const rollbackRoutes = require('./routes/rollback');
+const maintenanceReportsRoutes = require('./routes/maintenanceReports');
 
 // Import Middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -232,6 +239,13 @@ app.use('/api/v1/clients', clientPortalRoutes);
 app.use('/api/v1/client-portal', clientPortalRoutes);
 app.use('/api/v1/links', linksRoutes);
 app.use('/api/v1/ssl', sslRoutes);
+app.use('/api/v1/plugins', pluginsRoutes);
+app.use('/api/v1/themes', themesRoutes);
+app.use('/api/v1/vulnerabilities', vulnerabilitiesRoutes);
+app.use('/api/v1/selfhealing', selfHealingRoutes);
+app.use('/api/v1/wp-users', wpUsersRoutes);
+app.use('/api/v1/rollback', rollbackRoutes);
+app.use('/api/v1/reports', maintenanceReportsRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -253,32 +267,26 @@ app.use(sentryErrorHandler());
 // Error Handler
 app.use(errorHandler);
 
-// Socket.io JWT middleware — auto-join user room on connect
+// Socket.io JWT middleware — reject unauthenticated connections
 const jwt = require('jsonwebtoken');
 io.use((socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-    if (!token) return next(); // allow unauthenticated (manual join_user_room still works)
+    if (!token) return next(new Error('Authentication required'));
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        socket.userId = decoded.userId || decoded.id;
-    } catch (_) {}
-    next();
+        socket.userId = decoded.userId;
+        next();
+    } catch (_) {
+        next(new Error('Invalid or expired token'));
+    }
 });
 
 // Socket.io Connection Handler
 io.on('connection', (socket) => {
-    logger.debug('WebSocket client connected', { socketId: socket.id });
+    logger.debug('WebSocket client connected', { socketId: socket.id, userId: socket.userId });
 
-    // Auto-join room if JWT was valid
-    if (socket.userId) {
-        socket.join(`user_${socket.userId}`);
-        logger.debug('User auto-joined room', { userId: socket.userId, socketId: socket.id });
-    }
-
-    socket.on('join_user_room', (userId) => {
-        socket.join(`user_${userId}`);
-        logger.debug('User joined room', { userId, socketId: socket.id });
-    });
+    socket.join(`user_${socket.userId}`);
+    logger.debug('User auto-joined room', { userId: socket.userId, socketId: socket.id });
 
     socket.on('disconnect', () => {
         logger.debug('WebSocket client disconnected', { socketId: socket.id });

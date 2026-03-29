@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sun, Moon, LogOut, Receipt, Settings, ChevronDown, Zap, Bot, X, Command, Bell,
+  Users, UserCheck, Palette,
 } from 'lucide-react';
 import { useAuthStore } from '../lib/auth-store';
 import { useThemeStore } from '../lib/theme-store';
@@ -228,18 +229,19 @@ export function AppHeader() {
                   </span>
                 </div>
 
-                {/* Menu items */}
-                <div className="p-1.5">
-                  <MenuItem
-                    icon={<Settings className="w-4 h-4" />}
-                    label="Profil-Einstellungen"
-                    onClick={() => { setOpen(false); router.push('/profile'); }}
-                  />
-                  <MenuItem
-                    icon={<Receipt className="w-4 h-4" />}
-                    label="Rechnungen & Abo"
-                    onClick={() => { setOpen(false); router.push('/billing'); }}
-                  />
+                {/* Verwaltung */}
+                <div className="p-1.5 border-b border-gray-100 dark:border-white/[0.06]">
+                  <p className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-white/20 select-none">Verwaltung</p>
+                  <MenuItem icon={<Users className="w-4 h-4" />} label="Team" onClick={() => { setOpen(false); router.push('/dashboard/team'); }} />
+                  <MenuItem icon={<UserCheck className="w-4 h-4" />} label="Kunden" onClick={() => { setOpen(false); router.push('/dashboard/clients'); }} />
+                  <MenuItem icon={<Palette className="w-4 h-4" />} label="White Label" onClick={() => { setOpen(false); router.push('/dashboard/white-label'); }} />
+                  <MenuItem icon={<Bell className="w-4 h-4" />} label="Benachrichtigungen" onClick={() => { setOpen(false); router.push('/dashboard/notifications'); }} />
+                </div>
+
+                {/* Konto */}
+                <div className="p-1.5 border-b border-gray-100 dark:border-white/[0.06]">
+                  <MenuItem icon={<Settings className="w-4 h-4" />} label="Einstellungen" onClick={() => { setOpen(false); router.push('/profile'); }} />
+                  <MenuItem icon={<Receipt className="w-4 h-4" />} label="Abrechnung" onClick={() => { setOpen(false); router.push('/billing'); }} />
                   <div className="flex items-center justify-between px-3 py-2 rounded-lg
                     hover:bg-gray-50 dark:hover:bg-white/[0.05] cursor-pointer transition-colors"
                     onClick={toggle}
@@ -248,7 +250,6 @@ export function AppHeader() {
                       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                       {isDark ? 'Heller Modus' : 'Dunkler Modus'}
                     </div>
-                    {/* Toggle pill */}
                     <div className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0
                       ${isDark ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white/20'}`}>
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform
@@ -258,7 +259,7 @@ export function AppHeader() {
                 </div>
 
                 {/* Logout */}
-                <div className="p-1.5 border-t border-gray-100 dark:border-white/[0.06]">
+                <div className="p-1.5">
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg

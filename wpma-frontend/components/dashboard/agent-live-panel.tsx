@@ -55,7 +55,7 @@ export function AgentLivePanel() {
 
   const stats = (statsData as any)?.data || {};
   const allTasks: any[] = (tasksData as any)?.data || [];
-  const sites: any[] = sitesData || [];
+  const sites: any[] = Array.isArray(sitesData) ? sitesData : (sitesData as any)?.data || (sitesData as any)?.sites || [];
   const connectedSites = sites.filter(s => s.isConnected);
 
   const pendingTasks = allTasks.filter(t => t.status === 'awaiting_approval');

@@ -1,262 +1,28 @@
-/**
- * AI Chat Routes
- * API-Endpunkte für den KI-Chat-Assistenten
- */
-
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
-const AIChatService = require('../services/aiChatService');
-const PredictiveService = require('../services/predictiveService');
+const chatController = require('../controllers/chatController');
 
 router.use(authenticateToken);
 
-/**
- * POST /api/v1/chat
- * Universal Chat Endpoint - funktioniert ohne siteId
- */
-router.post('/', async (req, res) => {
-    try {
-        const userId = req.user?.userId || req.user?.id;
-        const { message, conversationHistory, siteId, conversationId } = req.body;
+router.post('/', chatController.universalChat.bind(chatController));
 
-        if (!message || message.trim().length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'Nachricht erforderlich'
-            });
-        }
+router.post('/:siteId/message', chatController.sendMessage.bind(chatController));
 
-        // Use AIChatService for intent detection, conversation persistence, and action execution
-        let result;
-        if (siteId) {
-            result = await AIChatService.chat(userId, parseInt(siteId), message, conversationId);
-        } else {
-            // Without siteId: use aiService directly for general chat
-            const aiService = require('../services/aiService');
-            const aiResult = await aiService.chatWithAssistant({
-                userId,
-                siteId: null,
-                message,
-                conversationHistory: conversationHistory || []
-            });
-            result = {
-                success: aiResult.success !== false,
-                data: {
-                    message: aiResult.response || 'Ich habe deine Anfrage verarbeitet.',
-                    suggestions: aiResult.suggestions || [],
-                    actions: []
-                }
-            };
-        }
+router.get('/conversations', chatController.getConversations.bind(chatController));
 
-        if (result.success) {
-            const defaultSuggestions = [
-                'Zeige mir alle Sites mit Problemen',
-                'Welche Updates sind verfügbar?',
-                'Erstelle ein Backup',
-                'Überprüfe die Sicherheit'
-            ];
+router.get('/conversations/:conversationId/history', chatController.getConversationHistory.bind(chatController));
 
-            res.json({
-                success: true,
-                data: {
-                    message: result.data?.message || result.data?.response || 'Ich habe deine Anfrage verarbeitet.',
-                    suggestions: result.data?.suggestions || defaultSuggestions,
-                    actions: result.data?.actions || [],
-                    conversationId: result.data?.conversationId
-                }
-            });
-        } else {
-            res.status(500).json(result);
-        }
-    } catch (error) {
-        console.error('Universal chat error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
+router.delete('/conversations/:conversationId', chatController.deleteConversation.bind(chatController));
 
-// ==========================================
-// CHAT ENDPOINTS
-// ==========================================
+router.post('/:siteId/quick-action', chatController.quickAction.bind(chatController));
 
-/**
- * POST /api/v1/chat/:siteId/message
- * Sendet eine Nachricht an den KI-Assistenten
- */
-router.post('/:siteId/message', async (req, res) => {
-    try {
-        const { siteId } = req.params;
-        const userId = req.user?.userId || req.user?.id;
-        const { message, conversationId } = req.body;
+router.get('/:siteId/predictions', chatController.getPredictions.bind(chatController));
 
-        if (!message || message.trim().length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'Nachricht erforderlich'
-            });
-        }
+router.post('/:siteId/analyze', chatController.analyzeAll.bind(chatController));
 
-        const result = await AIChatService.chat(userId, parseInt(siteId), message, conversationId);
-        res.json(result);
-    } catch (error) {
-        console.error('Chat message error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+router.get('/:siteId/health-summary', chatController.getHealthSummary.bind(chatController));
 
-/**
- * GET /api/v1/chat/conversations
- * Holt alle Konversationen des Users
- */
-router.get('/conversations', async (req, res) => {
-    try {
-        const userId = req.user?.userId || req.user?.id;
-        const limit = parseInt(req.query.limit) || 20;
-
-        const result = await AIChatService.getUserConversations(userId, limit);
-        res.json(result);
-    } catch (error) {
-        console.error('Get conversations error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * GET /api/v1/chat/conversations/:conversationId/history
- * Holt die Historie einer Konversation
- */
-router.get('/conversations/:conversationId/history', async (req, res) => {
-    try {
-        const { conversationId } = req.params;
-        const history = await AIChatService.getConversationHistory(parseInt(conversationId));
-        res.json({ success: true, data: history });
-    } catch (error) {
-        console.error('Get conversation history error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * DELETE /api/v1/chat/conversations/:conversationId
- * Löscht eine Konversation
- */
-router.delete('/conversations/:conversationId', async (req, res) => {
-    try {
-        const { conversationId } = req.params;
-        const userId = req.user?.userId || req.user?.id;
-
-        const result = await AIChatService.deleteConversation(userId, parseInt(conversationId));
-        res.json(result);
-    } catch (error) {
-        console.error('Delete conversation error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * POST /api/v1/chat/:siteId/quick-action
- * Führt eine Quick-Action aus dem Chat aus
- */
-router.post('/:siteId/quick-action', async (req, res) => {
-    try {
-        const { siteId } = req.params;
-        const userId = req.user?.userId || req.user?.id;
-        const { action, params } = req.body;
-
-        if (!action) {
-            return res.status(400).json({
-                success: false,
-                error: 'Aktion erforderlich'
-            });
-        }
-
-        const result = await AIChatService.executeAction(userId, parseInt(siteId), action, params || {});
-        res.json({ success: true, data: result });
-    } catch (error) {
-        console.error('Quick action error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// ==========================================
-// PREDICTIVE MAINTENANCE ENDPOINTS
-// ==========================================
-
-/**
- * GET /api/v1/chat/:siteId/predictions
- * Holt die neuesten Vorhersagen für eine Site
- */
-router.get('/:siteId/predictions', async (req, res) => {
-    try {
-        const { siteId } = req.params;
-        const result = await PredictiveService.getLatestPredictions(parseInt(siteId));
-        res.json(result);
-    } catch (error) {
-        console.error('Get predictions error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * POST /api/v1/chat/:siteId/analyze
- * Führt eine vollständige Predictive Analyse durch
- */
-router.post('/:siteId/analyze', async (req, res) => {
-    try {
-        const { siteId } = req.params;
-        const result = await PredictiveService.analyzeAll(parseInt(siteId));
-        res.json(result);
-    } catch (error) {
-        console.error('Analyze error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * GET /api/v1/chat/:siteId/health-summary
- * Holt eine KI-generierte Zusammenfassung der Site-Gesundheit
- */
-router.get('/:siteId/health-summary', async (req, res) => {
-    try {
-        const { siteId } = req.params;
-        const aiService = require('../services/aiService');
-        
-        const analysis = await aiService.performFullSiteAnalysis(parseInt(siteId));
-        res.json(analysis);
-    } catch (error) {
-        console.error('Health summary error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * POST /api/v1/chat/:siteId/auto-fix
- * Generiert automatische Lösungsvorschläge für ein Problem
- */
-router.post('/:siteId/auto-fix', async (req, res) => {
-    try {
-        const { siteId } = req.params;
-        const { problem } = req.body;
-
-        if (!problem) {
-            return res.status(400).json({
-                success: false,
-                error: 'Problem-Beschreibung erforderlich'
-            });
-        }
-
-        const aiService = require('../services/aiService');
-        const result = await aiService.generateAutoFix(parseInt(siteId), problem);
-        res.json(result);
-    } catch (error) {
-        console.error('Auto-fix error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+router.post('/:siteId/auto-fix', chatController.autoFix.bind(chatController));
 
 module.exports = router;
-

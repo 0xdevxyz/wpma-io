@@ -96,6 +96,7 @@ services:
     build:
       context: ./wpma-frontend
       dockerfile: Dockerfile
+      network: host
     container_name: wpma-frontend
     environment:
       NEXT_PUBLIC_API_URL: "https://api.wpma.io"
@@ -117,7 +118,9 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp:size=64m,noexec
+      - /tmp:size=64m,noexec,nosuid,nodev
+      - /dev/shm:size=64m,noexec,nosuid,nodev
+      - /app/.next/cache:size=128m,noexec,nosuid,nodev
     mem_limit: 512m
 
   landing:

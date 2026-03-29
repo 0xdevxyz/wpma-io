@@ -44,7 +44,7 @@ export function CommandPalette() {
     enabled: isOpen,
   });
 
-  const sites: any[] = sitesData || [];
+  const sites: any[] = Array.isArray(sitesData) ? sitesData : (sitesData as any)?.data || (sitesData as any)?.sites || [];
 
   const open = useCallback(() => {
     setIsOpen(true);

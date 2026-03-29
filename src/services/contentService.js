@@ -153,7 +153,7 @@ Antworte im folgenden JSON-Format:
         );
 
         const countResult = await query(
-            `SELECT COUNT(*) FROM content_posts cp WHERE ${conditions.slice(0, -0).join(' AND ')}`,
+            `SELECT COUNT(*) FROM content_posts cp WHERE ${conditions.join(' AND ')}`,
             values.slice(0, -2)
         );
 

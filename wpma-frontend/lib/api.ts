@@ -1,6 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import type {
+  BackupDownloadUrl,
+  BackupSchedule,
+} from '../types/api';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -115,16 +119,16 @@ export const api = new ApiClient();
 // Specific API functions
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post<{ user: any; token: string }>('/api/v1/auth/login', { email, password }),
+    api.post('/api/v1/auth/login', { email, password }),
   
-  register: (userData: any) =>
-    api.post<{ user: any; token: string }>('/api/v1/auth/register', userData),
+  register: (userData: Record<string, unknown>) =>
+    api.post('/api/v1/auth/register', userData),
   
   me: () =>
     api.get('/api/v1/auth/me'),
   
   refreshToken: () =>
-    api.post<{ user: any; token: string }>('/api/v1/auth/refresh'),
+    api.post('/api/v1/auth/refresh'),
 
   updateProfile: (data: { firstName?: string; lastName?: string }) =>
     api.put('/api/v1/auth/profile', data),
@@ -140,10 +144,10 @@ export const sitesApi = {
   getSite: (siteId: string) =>
     api.get(`/api/v1/sites/${siteId}`),
   
-  createSite: (siteData: any) =>
+  createSite: (siteData: Record<string, unknown>) =>
     api.post('/api/v1/sites', siteData),
   
-  updateSite: (siteId: string, siteData: any) =>
+  updateSite: (siteId: string, siteData: Record<string, unknown>) =>
     api.put(`/api/v1/sites/${siteId}`, siteData),
   
   deleteSite: (siteId: string) =>
@@ -198,11 +202,11 @@ export const backupApi = {
     api.delete(`/api/v1/backup/${backupId}`),
 
   downloadBackup: (backupId: string) =>
-    api.get(`/api/v1/backup/${backupId}/download`),
+    api.get<BackupDownloadUrl>(`/api/v1/backup/${backupId}/download`),
 
   // Schedule
   getSchedule: (siteId: string) =>
-    api.get(`/api/v1/backup/${siteId}/schedule`),
+    api.get<BackupSchedule>(`/api/v1/backup/${siteId}/schedule`),
 
   setSchedule: (siteId: string, payload: {
     scheduleType: string;
@@ -210,7 +214,7 @@ export const backupApi = {
     hour?: number;
     dayOfWeek?: number;
     dayOfMonth?: number;
-  }) => api.post(`/api/v1/backup/${siteId}/schedule`, payload),
+  }) => api.post<BackupSchedule>(`/api/v1/backup/${siteId}/schedule`, payload),
 
   // Quota
   getQuota: () =>
@@ -622,12 +626,55 @@ export const stagingApi = {
 };
 
 export const uptimeApi = {
-  getStats: (siteId: string, days = 30) =>
-    api.get(`/api/v1/uptime/${siteId}/stats?days=${days}`),
+  getStats: (siteId: string, hours = 24) =>
+    api.get(`/api/v1/monitoring/${siteId}/uptime?hours=${hours}`),
   getHistory: (siteId: string, limit = 100) =>
-    api.get(`/api/v1/uptime/${siteId}/history?limit=${limit}`),
+    api.get(`/api/v1/monitoring/${siteId}/uptime?hours=${limit}`),
+  getIncidents: (siteId: string, limit = 10) =>
+    api.get(`/api/v1/monitoring/${siteId}/incidents?limit=${limit}`),
   checkNow: (siteId: string) =>
-    api.post(`/api/v1/uptime/${siteId}/check`),
+    api.post(`/api/v1/monitoring/${siteId}/check`),
+};
+
+export const notificationsApi = {
+  getSettings: () =>
+    api.get('/api/v1/notifications/settings'),
+  saveSettings: (data: any) =>
+    api.post('/api/v1/notifications/settings', data),
+  test: (channel: string) =>
+    api.post('/api/v1/notifications/test', { channel }),
+};
+
+export const teamApi = {
+  getTeam: () =>
+    api.get('/api/v1/team'),
+  getMembers: () =>
+    api.get('/api/v1/team/members'),
+  getRoles: () =>
+    api.get('/api/v1/team/roles'),
+  inviteMember: (data: { email: string; role: string; siteIds?: number[] }) =>
+    api.post('/api/v1/team/invite', data),
+  updateMember: (memberId: number, data: { role: string }) =>
+    api.put(`/api/v1/team/members/${memberId}`, data),
+  removeMember: (memberId: number) =>
+    api.delete(`/api/v1/team/members/${memberId}`),
+  getInvites: () =>
+    api.get('/api/v1/team/invites'),
+  cancelInvite: (inviteId: number) =>
+    api.delete(`/api/v1/team/invites/${inviteId}`),
+};
+
+export const updatesApi = {
+  getAvailable: (siteId: string) =>
+    api.get(`/api/v1/updates/${siteId}/check`),
+  getSettings: (siteId: string) =>
+    api.get(`/api/v1/updates/${siteId}/settings`),
+  saveSettings: (siteId: string, data: any) =>
+    api.put(`/api/v1/updates/${siteId}/settings`, data),
+  getHistory: (siteId: string) =>
+    api.get(`/api/v1/updates/${siteId}/history`),
+  triggerUpdate: (siteId: string, data: { updatePlugins?: boolean; updateThemes?: boolean; updateCore?: boolean }) =>
+    api.post(`/api/v1/updates/${siteId}/auto-update`, data),
 };
 
 export const sslApi = {

@@ -61,10 +61,6 @@ router.post('/:siteId/health-check',
     sitesController.runHealthCheck
 );
 
-router.get('/:siteId/screenshot',
-    validate(siteIdParams, 'params'),
-    sitesController.getScreenshot
-);
 
 router.delete('/:siteId',
     validate(siteIdParams, 'params'),

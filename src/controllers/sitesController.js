@@ -773,7 +773,7 @@ class SitesController {
     async verifyPlugin(req, res) {
         try {
             const { siteId } = req.params;
-            const userId = req.user?.userId || req.user?.id;
+            const userId = req.user?.userId;
 
             const siteResult = await query(
                 'SELECT id, domain, site_url, api_key, setup_token, last_plugin_connection, onboarding_status FROM sites WHERE id = $1 AND user_id = $2 AND status = $3',

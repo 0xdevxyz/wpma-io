@@ -5,7 +5,7 @@ class SecurityController {
     async getStatus(req, res) {
         try {
             const { siteId } = req.params;
-            const userId = req.user?.userId || req.user?.id;
+            const userId = req.user?.userId;
             
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
@@ -49,7 +49,7 @@ class SecurityController {
                 return res.json(result);
             }
 
-            const userId = req.user?.userId || req.user?.id;
+            const userId = req.user?.userId;
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
                 [siteId, userId]
@@ -70,7 +70,7 @@ class SecurityController {
     async getVulnerabilities(req, res) {
         try {
             const { siteId } = req.params;
-            const userId = req.user?.userId || req.user?.id;
+            const userId = req.user?.userId;
             
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
@@ -92,7 +92,7 @@ class SecurityController {
     async getHistory(req, res) {
         try {
             const { siteId } = req.params;
-            const userId = req.user?.userId || req.user?.id;
+            const userId = req.user?.userId;
             const limit = parseInt(req.query.limit) || 10;
             
             const siteCheck = await query(
@@ -115,7 +115,7 @@ class SecurityController {
     async getStatistics(req, res) {
         try {
             const { siteId } = req.params;
-            const userId = req.user?.userId || req.user?.id;
+            const userId = req.user?.userId;
             
             const siteCheck = await query(
                 'SELECT id FROM sites WHERE id = $1 AND user_id = $2',
