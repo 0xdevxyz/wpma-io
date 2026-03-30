@@ -95,9 +95,33 @@ class AgentController {
         }
     }
 
+    async setManualMode(req, res) {
+        try {
+            const { active } = req.body;
+            if (typeof active !== 'boolean') {
+                return res.status(400).json({ success: false, error: 'active muss ein Boolean sein' });
+            }
+            const settings = await agentService.setManualMode(getUserId(req), active);
+            res.json({ success: true, data: settings });
+        } catch (err) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    }
+
     async scanAllSites(req, res) {
         try {
             const userId = getUserId(req);
+
+            // Block scan if manual mode is active
+            const settings = await agentService.getSettings(userId);
+            if (settings.manual_mode) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Agent ist im manuellen Modus pausiert. Bitte erst reaktivieren.',
+                    manual_mode: true,
+                });
+            }
+
             const sitesResult = await query(
                 `SELECT id FROM sites WHERE user_id = $1 AND status = 'active' AND last_plugin_connection IS NOT NULL`,
                 [userId]

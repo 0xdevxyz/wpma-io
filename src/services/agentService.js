@@ -11,6 +11,7 @@
 const { chatJSON } = require('./llmService');
 const { query } = require('../config/database');
 const axios = require('axios');
+const notificationService = require('./notificationService');
 
 // ─── Severity mapping ───────────────────────────────────────────────────────
 
@@ -206,10 +207,15 @@ Antworte mit exakt diesem JSON:
         // Auto-execute: run immediately if plan has no risky steps,
         // or if severity is low/medium (agent acts autonomously by default)
         const settingResult = await query(
-            `SELECT auto_approve_low, auto_approve_medium, auto_approve_high FROM agent_settings WHERE user_id = $1`,
+            `SELECT auto_approve_low, auto_approve_medium, auto_approve_high, manual_mode, enabled FROM agent_settings WHERE user_id = $1`,
             [task.user_id]
         );
-        const s = settingResult.rows[0] ?? { auto_approve_low: true, auto_approve_medium: true, auto_approve_high: false };
+        const s = settingResult.rows[0] ?? { auto_approve_low: true, auto_approve_medium: true, auto_approve_high: false, manual_mode: false, enabled: true };
+
+        if (s.manual_mode || s.enabled === false) {
+            console.log(`[Agent] Skipping auto-execute for task ${taskId}: manual_mode=${s.manual_mode}, enabled=${s.enabled}`);
+            return;
+        }
 
         const autoRun =
             !requiresApproval ||
@@ -295,6 +301,17 @@ async function executeTask(taskId, approvedByUserId) {
          VALUES ($1, 'agent_done', $2, $3, $4, NOW())`,
         [task.user_id, notifTitle, notifMsg, JSON.stringify({ taskId, siteId: task.site_id })]
     ).catch(() => {});
+
+    // Send Telegram notification if configured
+    const siteRow = await query(`SELECT domain FROM sites WHERE id = $1`, [task.site_id]).catch(() => ({ rows: [] }));
+    const domain = siteRow.rows[0]?.domain || 'Unbekannte Site';
+    notificationService.notify(task.user_id, 'agent_action', {
+        domain,
+        taskTitle: task.title,
+        status: finalStatus,
+        actions: doneSteps || 'Keine Aktionen',
+        url: `${process.env.FRONTEND_URL || 'https://app.wpma.io'}/dashboard`,
+    }).catch(() => {});
 
     return executionLog;
 }
@@ -496,8 +513,11 @@ async function scanAllSites() {
     const sitesResult = await query(
         `SELECT DISTINCT s.id, s.user_id
          FROM sites s
+         LEFT JOIN agent_settings ag ON ag.user_id = s.user_id
          WHERE s.status = 'active' AND s.last_plugin_connection IS NOT NULL
-           AND s.last_plugin_connection > NOW() - INTERVAL '24 hours'`
+           AND s.last_plugin_connection > NOW() - INTERVAL '24 hours'
+           AND (ag.manual_mode IS NULL OR ag.manual_mode = false)
+           AND (ag.enabled IS NULL OR ag.enabled = true)`
     );
 
     for (const row of sitesResult.rows) {
@@ -578,14 +598,17 @@ async function getSettings(userId) {
         notify_on_detection: true,
         notify_on_completion: true,
         enabled: true,
+        manual_mode: false,
+        manual_mode_since: null,
+        scan_frequency_hours: 6,
     };
 }
 
 async function saveSettings(userId, settings) {
     await query(
         `INSERT INTO agent_settings (user_id, auto_approve_low, auto_approve_medium, auto_approve_high,
-            auto_approve_critical, notify_on_detection, notify_on_completion, enabled)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            auto_approve_critical, notify_on_detection, notify_on_completion, enabled, scan_frequency_hours)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (user_id) DO UPDATE SET
             auto_approve_low = EXCLUDED.auto_approve_low,
             auto_approve_medium = EXCLUDED.auto_approve_medium,
@@ -594,18 +617,45 @@ async function saveSettings(userId, settings) {
             notify_on_detection = EXCLUDED.notify_on_detection,
             notify_on_completion = EXCLUDED.notify_on_completion,
             enabled = EXCLUDED.enabled,
+            scan_frequency_hours = EXCLUDED.scan_frequency_hours,
             updated_at = NOW()`,
         [
             userId,
             settings.auto_approve_low ?? true,
-            settings.auto_approve_medium ?? false,
+            settings.auto_approve_medium ?? true,
             settings.auto_approve_high ?? false,
             settings.auto_approve_critical ?? false,
             settings.notify_on_detection ?? true,
             settings.notify_on_completion ?? true,
             settings.enabled ?? true,
+            settings.scan_frequency_hours ?? 6,
         ]
     );
+}
+
+async function setManualMode(userId, active) {
+    if (active) {
+        await query(
+            `INSERT INTO agent_settings (user_id, manual_mode, manual_mode_since, enabled)
+             VALUES ($1, true, NOW(), true)
+             ON CONFLICT (user_id) DO UPDATE SET
+                manual_mode = true,
+                manual_mode_since = NOW(),
+                updated_at = NOW()`,
+            [userId]
+        );
+    } else {
+        await query(
+            `INSERT INTO agent_settings (user_id, manual_mode, manual_mode_since, enabled)
+             VALUES ($1, false, NULL, true)
+             ON CONFLICT (user_id) DO UPDATE SET
+                manual_mode = false,
+                manual_mode_since = NULL,
+                updated_at = NOW()`,
+            [userId]
+        );
+    }
+    return getSettings(userId);
 }
 
 module.exports = {
@@ -620,4 +670,5 @@ module.exports = {
     getStats,
     getSettings,
     saveSettings,
+    setManualMode,
 };

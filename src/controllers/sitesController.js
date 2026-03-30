@@ -34,14 +34,35 @@ class SitesController {
                 throw new ValidationError(`Site limit reached for ${planType} plan`);
             }
             
-            // Check if domain already exists
+            // Check if domain already exists for this user
             const existingSite = await query(
-                'SELECT id FROM sites WHERE domain = $1 AND status = $2',
-                [domain, 'active']
+                'SELECT id FROM sites WHERE domain = $1 AND user_id = $2 AND status = $3',
+                [domain, userId, 'active']
             );
             
             if (existingSite.rows.length > 0) {
-                throw new ValidationError('Domain already exists');
+                const existingId = existingSite.rows[0].id;
+                const existingResult = await query(
+                    `SELECT id, domain, site_url, site_name, api_key, status, setup_token, setup_token_expires_at, setup_token_used, last_plugin_connection FROM sites WHERE id = $1`,
+                    [existingId]
+                );
+                const s = existingResult.rows[0];
+                return res.status(200).json({
+                    success: true,
+                    alreadyExists: true,
+                    data: {
+                        id: s.id,
+                        domain: s.domain,
+                        siteUrl: s.site_url,
+                        siteName: s.site_name,
+                        apiKey: s.api_key,
+                        status: s.status,
+                        setupToken: s.setup_token,
+                        setupTokenExpiresAt: s.setup_token_expires_at,
+                        setupTokenUsed: s.setup_token_used,
+                        isConnected: Boolean(s.last_plugin_connection),
+                    },
+                });
             }
             
             // Generate unique API key
@@ -640,13 +661,21 @@ class SitesController {
                 });
             }
             
-            // Plugin ZIP path — dynamisch, nimmt neueste Version
+            // Plugin ZIP path — releases/ Verzeichnis hat Vorrang, dann Root
             const rootDir = path.join(__dirname, '../..');
-            const pluginFiles = fs.readdirSync(rootDir)
-                .filter(f => /^wpma-agent.*\.zip$/.test(f))
-                .sort()
-                .reverse();
-            const pluginPath = pluginFiles.length > 0 ? path.join(rootDir, pluginFiles[0]) : null;
+            const releasesDir = path.join(rootDir, 'releases');
+            let pluginPath = null;
+            for (const dir of [releasesDir, rootDir]) {
+                if (!fs.existsSync(dir)) continue;
+                const files = fs.readdirSync(dir)
+                    .filter(f => /^wpma-agent.*\.zip$/.test(f))
+                    .sort()
+                    .reverse();
+                if (files.length > 0) {
+                    pluginPath = path.join(dir, files[0]);
+                    break;
+                }
+            }
 
             // Check if plugin file exists
             if (!pluginPath || !fs.existsSync(pluginPath)) {
@@ -675,7 +704,7 @@ class SitesController {
                     `define('WPMA_SETUP_TOKEN', '${token}');`,  // einmaliger sync-token
                 ].join('\n') + '\n';
                 src = src.replace(
-                    /define\('WPMA_API_URL'[^)]+\);/,
+                    /if \(!defined\('WPMA_API_URL'\)\)\s+define\('WPMA_API_URL'[^)]+\);/,
                     (m) => m + inject
                 );
                 zip.updateFile('wpma-agent/wpma-agent.php', Buffer.from(src, 'utf8'));
@@ -788,17 +817,20 @@ class SitesController {
             const siteUrl = (site.site_url || '').replace(/\/$/, '');
 
             let statusData = null;
+            let statusError = null;
             try {
                 const response = await axios.get(`${siteUrl}/wp-json/wpma/v1/status`, {
                     headers: { 'User-Agent': 'WPMA-Backend/1.0' },
                     timeout: 10000,
                     validateStatus: null,
                 });
+                console.log(`[verifyPlugin] Site ${site.id} status response: ${response.status}`, JSON.stringify(response.data));
                 if (response.status === 200 && response.data?.status === 'ok') {
                     statusData = response.data;
                 }
-            } catch (_) {
-                // unreachable / network error
+            } catch (e) {
+                statusError = e.message;
+                console.error(`[verifyPlugin] Site ${site.id} (${siteUrl}) network error: ${e.message}`);
             }
 
             if (!statusData) {
@@ -808,6 +840,7 @@ class SitesController {
                         pluginStatus:  'not_found',
                         message:       'WPMA Plugin not found on this site. Please install and activate the plugin.',
                         isConnected:   false,
+                        debugInfo:     statusError || 'No valid status response received',
                     },
                 });
             }

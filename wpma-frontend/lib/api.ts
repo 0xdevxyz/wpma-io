@@ -283,6 +283,8 @@ export const agentApi = {
     api.get('/api/v1/agent/settings'),
   saveSettings: (s: any) =>
     api.put('/api/v1/agent/settings', s),
+  setManualMode: (active: boolean) =>
+    api.put('/api/v1/agent/settings/manual-mode', { active }),
   scanSite: (siteId: string) =>
     api.post(`/api/v1/agent/scan/${siteId}`),
   scanAll: () =>

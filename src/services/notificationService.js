@@ -400,6 +400,14 @@ class NotificationService {
                 body: `*${data.domain}* wurde erfolgreich eingerichtet!\n` +
                       `Alle Features sind jetzt verfügbar: Monitoring, Backups, Updates, Security.`,
                 fields: [{ label: 'Site', value: data.domain }]
+            },
+            agent_action: {
+                title: (data.status === 'done' ? '✅' : '⚠️') + ' Agent-Aktion: ' + (data.domain || 'Unbekannt'),
+                body: `*${data.taskTitle || 'Aufgabe'}* auf *${data.domain}*\nStatus: ${data.status === 'done' ? 'Erfolgreich' : 'Fehlgeschlagen'}`,
+                fields: [
+                    { label: 'Site', value: data.domain },
+                    { label: 'Ausgeführt', value: data.actions || '–' },
+                ]
             }
         };
 
@@ -438,6 +446,7 @@ class NotificationService {
      * Prüft ob Event-Typ aktiviert ist
      */
     isEventEnabled(settings, eventType) {
+        if (eventType === 'agent_action') return true;
         const enabledEvents = settings.enabledEvents || [];
         return enabledEvents.includes(eventType) || enabledEvents.includes('all');
     }

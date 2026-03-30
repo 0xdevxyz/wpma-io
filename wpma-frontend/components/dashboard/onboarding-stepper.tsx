@@ -288,7 +288,7 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
       } else {
         toast.error(r.error || 'Fehler beim Erstellen');
       }
-    } catch { toast.error('Fehler beim Erstellen'); }
+    } catch (e: any) { toast.error(e?.message || 'Fehler beim Erstellen'); }
     finally { setCreating(false); }
   };
 

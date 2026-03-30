@@ -13,6 +13,7 @@ router.post('/tasks/:id/reject', authenticateToken, agentController.rejectTask.b
 router.post('/scan/:siteId', authenticateToken, agentController.scanSite.bind(agentController));
 router.get('/settings', authenticateToken, agentController.getSettings.bind(agentController));
 router.put('/settings', authenticateToken, agentController.saveSettings.bind(agentController));
+router.put('/settings/manual-mode', authenticateToken, agentController.setManualMode.bind(agentController));
 router.post('/scan-all', authenticateToken, agentController.scanAllSites.bind(agentController));
 
 module.exports = router;

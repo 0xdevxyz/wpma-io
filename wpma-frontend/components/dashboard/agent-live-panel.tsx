@@ -130,9 +130,16 @@ export function AgentLivePanel() {
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">
-              Überwacht {connectedSites.length} Site{connectedSites.length !== 1 ? 's' : ''} · alle 6h automatisch
-            </p>
+            {activeTasks.length > 0 ? (
+              <p className="text-[11px] text-blue-500 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+                <Scan className="w-3 h-3" />
+                {activeTasks[0].site_name || activeTasks[0].domain || 'Site'} wird gerade verarbeitet
+              </p>
+            ) : (
+              <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">
+                Überwacht {connectedSites.length} Site{connectedSites.length !== 1 ? 's' : ''} · alle 6h automatisch
+              </p>
+            )}
           </div>
         </div>
 
@@ -221,6 +228,37 @@ export function AgentLivePanel() {
         </div>
       )}
 
+      {/* Active tasks */}
+      {activeTasks.length > 0 && pendingTasks.length === 0 && (
+        <div className="divide-y divide-gray-50 dark:divide-white/[0.03]">
+          {activeTasks.slice(0, 2).map(task => {
+            const CatIcon = CAT_ICON[task.category] || Sparkles;
+            const siteName = task.site_name || task.domain || '–';
+            const steps: Record<string, string> = {
+              analyzing: 'KI analysiert das Problem…',
+              action_planned: 'Aktionsplan wird vorbereitet…',
+              executing: 'Fix wird durchgeführt…',
+            };
+            return (
+              <div key={task.id} className="flex items-start gap-3 px-4 py-3">
+                <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <CatIcon className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{task.title}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">{siteName}</span>
+                    {' · '}
+                    <span>{steps[task.status] || STATUS_LABEL[task.status]}</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Idle / No activity */}
       {!hasApprovals && activeTasks.length === 0 && (
         <div className="px-4 py-3">
@@ -230,20 +268,36 @@ export function AgentLivePanel() {
                 <div key={task.id} className="flex items-center gap-2">
                   <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                   <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                    {task.domain || task.site_name}: {task.title}
+                    <span className="font-medium">{task.site_name || task.domain}</span>: {task.title}
                   </span>
                   <span className="text-[10px] text-gray-400 ml-auto flex-shrink-0">erledigt</span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-4 h-4 text-violet-500" />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500">
-                Der Agent überwacht alle Sites im Hintergrund. Probleme werden automatisch erkannt und gemeldet.
-              </p>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mb-1.5">
+                  Der Agent überwacht alle Sites im Hintergrund. Probleme werden automatisch erkannt und gemeldet.
+                </p>
+                {connectedSites.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {connectedSites.slice(0, 6).map((s: any) => (
+                      <span key={s.id} className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.05] text-gray-500 dark:text-gray-500">
+                        {s.siteName || s.domain}
+                      </span>
+                    ))}
+                    {connectedSites.length > 6 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.05] text-gray-400 dark:text-gray-600">
+                        +{connectedSites.length - 6}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

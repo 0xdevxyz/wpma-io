@@ -8,6 +8,8 @@ const performanceService = require('./performanceService');
 const securityService = require('./securityService');
 const sslService = require('./sslService');
 const backupService = require('./backupService');
+const agentService = require('./agentService');
+const { sendMonthlyReports } = require('./monthlyReportService');
 
 class JobService {
     constructor() {
@@ -80,6 +82,20 @@ class JobService {
         this.jobs.push(
             cron.schedule('* * * * *', () => {
                 backupService.runDueScheduledBackups();
+            })
+        );
+
+        // Agent autonomous scan — every 15 minutes
+        this.jobs.push(
+            cron.schedule('*/15 * * * *', () => {
+                this.runAgentScans();
+            })
+        );
+
+        // Monthly report — 1st of each month at 01:00
+        this.jobs.push(
+            cron.schedule('0 1 1 * *', () => {
+                this.runMonthlyReports();
             })
         );
 
@@ -206,8 +222,31 @@ class JobService {
         }
     }
 
-    async runSslChecks() {
-        const jobName = 'sslChecks';
+    async runAgentScans() {
+        const jobName = 'agentScans';
+        try {
+            logger.debug('[Job] Running autonomous agent scans...');
+            await agentService.scanAllSites();
+            this._resetFailures(jobName);
+            logger.info('[Job] Agent scans completed');
+        } catch (error) {
+            this._recordFailure(jobName, error);
+        }
+    }
+
+    async runMonthlyReports() {
+        const jobName = 'monthlyReports';
+        try {
+            logger.info('[Job] Sending monthly reports...');
+            await sendMonthlyReports();
+            this._resetFailures(jobName);
+            logger.info('[Job] Monthly reports sent');
+        } catch (error) {
+            this._recordFailure(jobName, error);
+        }
+    }
+
+    async runSslChecks() {        const jobName = 'sslChecks';
         try {
             logger.debug('[Job] Running SSL certificate checks...');
             const { summary } = await sslService.checkAllSites();

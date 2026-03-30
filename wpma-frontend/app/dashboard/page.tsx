@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Bot, CheckCircle, AlertTriangle, XCircle, Zap, Shield, RefreshCw,
   ChevronRight, Play, Check, X, Clock, Activity, ArrowRight,
-  Sparkles, Globe, HardDrive, Package,
+  Sparkles, Globe, HardDrive, Package, Plus, Hand, Eye, Lightbulb,
 } from 'lucide-react';
 import { sitesApi, agentApi, securityApi, bulkApi, backupApi } from '../../lib/api';
 import { useAuthStore } from '../../lib/auth-store';
@@ -85,11 +85,13 @@ const ACTION_COPY: Record<string, string> = {
 
 // ─── HERO ─────────────────────────────────────────────────────────────────────
 
-function Hero({ sites, tasks, stats, onScanAll }: {
+function Hero({ sites, tasks, stats, onScanAll, isManualMode, onReactivate }: {
   sites: any[];
   tasks: any[];
   stats: any;
   onScanAll: () => void;
+  isManualMode: boolean;
+  onReactivate: () => void;
 }) {
   const criticalSites = sites.filter(s => s.healthScore > 0 && s.healthScore < 50);
   const pendingApprovals = tasks.filter(t => t.status === 'awaiting_approval');
@@ -102,6 +104,48 @@ function Hero({ sites, tasks, stats, onScanAll }: {
 
   const isAllGood = criticalSites.length === 0 && pendingApprovals.length === 0;
   const isRunning = activeTasks.length > 0;
+
+  if (isManualMode) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl bg-[#0a0a12] border border-amber-500/20 p-8 mb-6">
+        <div className="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(ellipse_at_top,_#f59e0b_0%,_transparent_60%)]" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-start gap-6">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-amber-500/20 ring-2 ring-amber-500/40">
+            <Hand className="w-8 h-8 text-amber-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-1">Manueller Modus aktiv</p>
+            <h1 className="text-3xl font-bold text-white leading-tight">Agent pausiert – nur Monitoring</h1>
+            <p className="text-sm text-gray-400 mt-1">
+              Du hast die manuelle Administration übernommen. Der Agent überwacht deine Sites und gibt Empfehlungen,
+              führt aber keine Aktionen durch.
+            </p>
+            <div className="flex flex-wrap items-center gap-4 mt-4">
+              {[
+                { label: 'Sites', value: sites.length, icon: Globe },
+                { label: 'Überwacht', value: sites.length, icon: Eye },
+                { label: 'Empfehlungen', value: criticalSites.length + (pendingApprovals.length), icon: Lightbulb },
+              ].map(s => (
+                <div key={s.label} className="flex items-center gap-1.5 text-sm">
+                  <s.icon className="w-3.5 h-3.5 text-gray-500" />
+                  <span className="font-semibold text-white">{s.value}</span>
+                  <span className="text-gray-500">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={onReactivate}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold flex-shrink-0 transition-all
+              bg-white text-black hover:bg-white/90 shadow-lg shadow-white/10"
+          >
+            <Zap className="w-4 h-4" />
+            Agent reaktivieren
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-[#0a0a12] border border-white/[0.06] p-8 mb-6">
@@ -199,6 +243,77 @@ function Hero({ sites, tasks, stats, onScanAll }: {
   );
 }
 
+// ─── RECOMMENDATIONS (Manual Mode) ───────────────────────────────────────────
+
+function AgentRecommendations({ tasks, sites }: { tasks: any[]; sites: any[] }) {
+  const recommendations: { title: string; desc: string; severity: string; siteName: string }[] = [];
+
+  // Build recommendations from current task state
+  tasks
+    .filter(t => !['done', 'rejected'].includes(t.status))
+    .slice(0, 8)
+    .forEach(t => {
+      const site = sites.find(s => s.id === t.site_id);
+      recommendations.push({
+        title: t.title,
+        desc: t.ai_analysis?.root_cause || t.ai_analysis?.impact || 'Agent empfiehlt Überprüfung',
+        severity: t.severity,
+        siteName: t.site_name || site?.siteName || site?.domain || 'Site',
+      });
+    });
+
+  // Add site-based recommendations if no tasks
+  if (recommendations.length === 0) {
+    sites.filter(s => {
+      const h = s.healthScore ?? null;
+      return h !== null && h > 0 && h < 70;
+    }).slice(0, 4).forEach(s => {
+      recommendations.push({
+        title: `Health Score bei ${s.healthScore}% – Überprüfung empfohlen`,
+        desc: 'Manueller Check der Site-Konfiguration, Plugin-Konflikte und Performance-Parameter empfohlen.',
+        severity: s.healthScore < 50 ? 'high' : 'medium',
+        siteName: s.siteName || s.domain,
+      });
+    });
+  }
+
+  if (recommendations.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-8 text-center">
+        <Eye className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+        <p className="text-sm text-gray-600">Keine Empfehlungen – alle Sites sehen gut aus</p>
+      </div>
+    );
+  }
+
+  const severityColor: Record<string, string> = {
+    critical: 'text-red-400 bg-red-500/10',
+    high: 'text-orange-400 bg-orange-500/10',
+    medium: 'text-amber-400 bg-amber-500/10',
+    low: 'text-blue-400 bg-blue-500/10',
+  };
+
+  return (
+    <ul className="space-y-2">
+      {recommendations.map((r, i) => (
+        <li key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5
+            ${severityColor[r.severity] || 'text-white/30 bg-white/5'}`}>
+            <Lightbulb className="w-3 h-3" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white/80 truncate">{r.siteName}</p>
+            <p className="text-sm text-white/60 leading-snug">{r.title}</p>
+            {r.desc && r.desc !== r.title && (
+              <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{r.desc}</p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // ─── APPROVAL CARD ────────────────────────────────────────────────────────────
 
 function ApprovalCard({ task, onApprove, onReject }: { task: any; onApprove: () => void; onReject: () => void }) {
@@ -227,6 +342,17 @@ function ApprovalCard({ task, onApprove, onReject }: { task: any; onApprove: () 
 
 // ─── TIMELINE ────────────────────────────────────────────────────────────────
 
+const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+  done:              { label: 'Erfolgreich',  cls: 'text-green-400 bg-green-500/10' },
+  failed:            { label: 'Fehlgeschlagen', cls: 'text-red-400 bg-red-500/10' },
+  analyzing:         { label: 'Analysiert',   cls: 'text-blue-400 bg-blue-500/10' },
+  executing:         { label: 'Wird ausgeführt', cls: 'text-blue-400 bg-blue-500/10' },
+  action_planned:    { label: 'Geplant',      cls: 'text-blue-400 bg-blue-500/10' },
+  awaiting_approval: { label: 'Wartet',       cls: 'text-amber-400 bg-amber-500/10' },
+  rejected:          { label: 'Abgelehnt',    cls: 'text-white/30 bg-white/5' },
+  detected:          { label: 'Erkannt',      cls: 'text-white/30 bg-white/5' },
+};
+
 function Timeline({ tasks }: { tasks: any[] }) {
   const recent = [...tasks]
     .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
@@ -240,35 +366,48 @@ function Timeline({ tasks }: { tasks: any[] }) {
       <div className="absolute left-[15px] top-2 bottom-2 w-px bg-white/[0.06]" />
 
       <ul className="space-y-1">
-        {recent.map((task, i) => (
-          <li key={task.id || i} className="flex items-start gap-3 group">
-            {/* Dot */}
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 mt-0.5
-              ${statusColor(task.status)}`}>
-              {statusIcon(task.status)}
-            </div>
-
-            <div className="flex-1 min-w-0 flex items-start justify-between gap-2 py-0.5">
-              <div className="min-w-0">
-                <p className="text-sm leading-snug">
-                  <span className="font-medium text-white/90">
-                    {task.site_name || task.site?.domain || task.site?.site_name || 'Agent'}
-                  </span>
-                  <span className="text-white/40"> · </span>
-                  <span className="text-white/60">
-                    {ACTION_COPY[task.action_type] || task.action_type?.replace(/_/g, ' ') || 'Aktion'}
-                  </span>
-                </p>
-                {task.result_summary && typeof task.result_summary === 'string' && !task.result_summary.startsWith('{') && (
-                  <p className="text-xs text-white/25 mt-0.5 truncate">{task.result_summary}</p>
-                )}
+        {recent.map((task, i) => {
+          const st = STATUS_LABEL[task.status];
+          const doneActions = Array.isArray(task.actions)
+            ? task.actions.filter((a: any) => a.status === 'done').map((a: any) => a.action_label).join(', ')
+            : null;
+          return (
+            <li key={task.id || i} className="flex items-start gap-3 group">
+              {/* Dot */}
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 mt-0.5
+                ${statusColor(task.status)}`}>
+                {statusIcon(task.status)}
               </div>
-              <span className="text-[11px] text-white/20 flex-shrink-0 mt-0.5 whitespace-nowrap">
-                {timeAgo(task.updated_at || task.created_at)}
-              </span>
-            </div>
-          </li>
-        ))}
+
+              <div className="flex-1 min-w-0 flex items-start justify-between gap-2 py-0.5">
+                <div className="min-w-0">
+                  <p className="text-sm leading-snug">
+                    <span className="font-medium text-white/90">
+                      {task.site_name || task.site?.domain || task.site?.site_name || 'Agent'}
+                    </span>
+                    <span className="text-white/40"> · </span>
+                    <span className="text-white/70">
+                      {task.title || ACTION_COPY[task.action_type] || task.action_type?.replace(/_/g, ' ') || 'Aktion'}
+                    </span>
+                  </p>
+                  {doneActions && (
+                    <p className="text-xs text-white/30 mt-0.5 truncate">{doneActions}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                  {st && (
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${st.cls}`}>
+                      {st.label}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-white/20 whitespace-nowrap">
+                    {timeAgo(task.updated_at || task.created_at)}
+                  </span>
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -276,7 +415,7 @@ function Timeline({ tasks }: { tasks: any[] }) {
 
 // ─── ATTENTION SITES ──────────────────────────────────────────────────────────
 
-function AttentionSite({ site, onScan, agentWorking }: { site: any; onScan: () => void; agentWorking?: boolean }) {
+function AttentionSite({ site, onScan, agentWorking, onSelect, selected }: { site: any; onScan: () => void; agentWorking?: boolean; onSelect?: () => void; selected?: boolean }) {
   const router = useRouter();
   const totalUpdates = (site.pluginsUpdates || 0) + (site.themesUpdates || 0) + (site.coreUpdateAvailable ? 1 : 0);
   const health = site.healthScore ?? null;
@@ -291,12 +430,19 @@ function AttentionSite({ site, onScan, agentWorking }: { site: any; onScan: () =
   if (totalUpdates > 0) issues.push({ label: `${totalUpdates} Updates`, cls: 'bg-blue-500/15 text-blue-400' });
   const sec = site.securityScore ?? null;
   if (sec !== null && sec > 0 && sec < 60) issues.push({ label: 'Sicherheit', cls: 'bg-orange-500/15 text-orange-400' });
+  if (!isDown && !notChecked && health >= 70 && totalUpdates === 0 && (sec === null || sec === 0 || sec >= 60)) {
+    issues.push({ label: 'Aktuell', cls: 'bg-green-500/15 text-green-400' });
+  }
 
-  const dotColor = isDown ? 'bg-red-500' : notChecked ? 'bg-white/20' : health < 50 ? 'bg-red-500' : 'bg-amber-500';
+  const dotColor = isDown ? 'bg-red-500' : notChecked ? 'bg-white/20' : health < 50 ? 'bg-red-500' : health < 70 ? 'bg-amber-500' : 'bg-green-500';
 
   return (
-    <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all group
-      ${agentWorking
+    <div
+      onClick={onSelect}
+      className={`flex items-center gap-3 p-4 rounded-xl border transition-all group cursor-pointer
+      ${selected
+        ? 'bg-blue-500/[0.08] border-blue-500/30'
+        : agentWorking
         ? 'bg-blue-500/[0.04] border-blue-500/20'
         : 'bg-white/[0.03] border-white/[0.06] hover:border-white/10 hover:bg-white/[0.05]'
       }`}>
@@ -364,6 +510,8 @@ export default function DashboardPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const [showAI, setShowAI] = useState(false);
+  const [showAddSite, setShowAddSite] = useState(false);
+  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
 
   const { data: sitesData } = useQuery({
     queryKey: ['sites'],
@@ -386,13 +534,35 @@ export default function DashboardPage() {
   });
   const stats = (statsData as any)?.data || {};
 
+  const { data: settingsData } = useQuery({
+    queryKey: ['agent-settings'],
+    queryFn: agentApi.getSettings,
+    refetchInterval: 20000,
+  });
+  const isManualMode: boolean = (settingsData as any)?.data?.manual_mode ?? false;
+
+  const reactivateMut = useMutation({
+    mutationFn: () => agentApi.setManualMode(false),
+    onSuccess: () => {
+      toast.success('Agent reaktiviert – übernimmt wieder alle Aufgaben');
+      qc.invalidateQueries({ queryKey: ['agent-settings'] });
+    },
+    onError: () => toast.error('Reaktivierung fehlgeschlagen'),
+  });
+
   const scanAllMut = useMutation({
     mutationFn: agentApi.scanAll,
     onSuccess: () => {
       toast.success('Agent scannt alle Sites…');
       setTimeout(() => qc.invalidateQueries({ queryKey: ['agent-tasks'] }), 2000);
     },
-    onError: () => toast.error('Scan konnte nicht gestartet werden'),
+    onError: (err: any) => {
+      if (err?.response?.data?.manual_mode) {
+        toast.error('Agent ist pausiert. Bitte erst reaktivieren.');
+      } else {
+        toast.error('Scan konnte nicht gestartet werden');
+      }
+    },
   });
 
   const approveMut = useMutation({
@@ -421,7 +591,6 @@ export default function DashboardPage() {
     const health = s.healthScore ?? null;
     const updates = (s.pluginsUpdates || 0) + (s.themesUpdates || 0) + (s.coreUpdateAvailable ? 1 : 0);
     const security = s.securityScore ?? null;
-    // health=0 means "not checked yet" — only flag if checked AND low
     const healthBad = health !== null && health > 0 && health < 70;
     const secBad = security !== null && security > 0 && security < 60;
     const isDown = s.uptimeStatus === 'down' || s.last_status === 'down';
@@ -430,7 +599,6 @@ export default function DashboardPage() {
 
   const isAllGood = attentionSites.length === 0 && pendingApprovals.length === 0;
 
-  // Which site IDs is the agent currently working on?
   const activeTasks = tasks.filter(t => ['analyzing', 'executing', 'running', 'action_planned'].includes(t.status));
   const agentSiteIds = new Set(activeTasks.map(t => t.site_id).filter(Boolean));
 
@@ -441,7 +609,13 @@ export default function DashboardPage() {
 
       <div className="min-h-screen">
         {/* Onboarding (only for new users) */}
-        {sites.length === 0 && <OnboardingStepper />}
+        {(sites.length === 0 || showAddSite) && (
+          <OnboardingStepper
+            isOpen={true}
+            onClose={() => setShowAddSite(false)}
+            onDone={() => setShowAddSite(false)}
+          />
+        )}
 
         {/* Hero */}
         <Hero
@@ -449,6 +623,8 @@ export default function DashboardPage() {
           tasks={tasks}
           stats={stats}
           onScanAll={() => scanAllMut.mutate()}
+          isManualMode={isManualMode}
+          onReactivate={() => reactivateMut.mutate()}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -456,8 +632,8 @@ export default function DashboardPage() {
           {/* ─── LEFT COLUMN (main) ─── */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Pending approvals */}
-            {pendingApprovals.length > 0 && (
+            {/* Pending approvals (hidden in manual mode – agent doesn't act) */}
+            {!isManualMode && pendingApprovals.length > 0 && (
               <section>
                 <h2 className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5" />
@@ -484,20 +660,19 @@ export default function DashboardPage() {
                   : <><CheckCircle className="w-3.5 h-3.5 text-green-500" /> Site-Status</>}
               </h2>
 
-              {isAllGood && pendingApprovals.length === 0 ? (
-                <AllOkState sites={sites} />
-              ) : (
-                <div className="space-y-2">
-                  {attentionSites.map(site => (
-                    <AttentionSite
-                      key={site.id}
-                      site={site}
-                      agentWorking={agentSiteIds.has(site.id)}
-                      onScan={() => scanSiteMut.mutate(String(site.id))}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="space-y-2">
+                {(isAllGood ? sites : attentionSites).map(site => (
+                  <AttentionSite
+                    key={site.id}
+                    site={site}
+                    agentWorking={!isManualMode && agentSiteIds.has(site.id)}
+                    onScan={() => scanSiteMut.mutate(String(site.id))}
+                    onSelect={() => setSelectedSiteId(selectedSiteId === site.id ? null : site.id)}
+                    selected={selectedSiteId === site.id}
+                  />
+                ))}
+                {isAllGood && sites.length === 0 && <AllOkState sites={sites} />}
+              </div>
             </section>
           </div>
 
@@ -520,23 +695,47 @@ export default function DashboardPage() {
               <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 ml-auto transition-colors" />
             </button>
 
-            {/* Activity feed */}
-            <section>
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Activity className="w-3.5 h-3.5" />
-                Agent-Aktivität
-              </h2>
+            {/* Manual mode: Recommendations feed instead of activity */}
+            {isManualMode ? (
+              <section>
+                <h2 className="text-xs font-semibold text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  Agent-Empfehlungen
+                </h2>
+                <AgentRecommendations tasks={tasks} sites={sites} />
+              </section>
+            ) : (
+              <section>
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5" />
+                  Agent-Aktivität
+                  {selectedSiteId && (
+                    <>
+                      <span className="text-white/30">·</span>
+                      <span className="text-blue-400 normal-case font-medium">
+                        {sites.find(s => s.id === selectedSiteId)?.siteName || sites.find(s => s.id === selectedSiteId)?.domain}
+                      </span>
+                      <button
+                        onClick={() => setSelectedSiteId(null)}
+                        className="ml-auto text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                      >
+                        Alle anzeigen
+                      </button>
+                    </>
+                  )}
+                </h2>
 
-              {tasks.length === 0 ? (
-                <div className="text-center py-8">
-                  <Bot className="w-8 h-8 text-gray-700 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Noch keine Aktivität</p>
-                  <p className="text-xs text-gray-700 mt-0.5">Starte einen Scan um den Agenten zu aktivieren</p>
-                </div>
-              ) : (
-                <Timeline tasks={tasks} />
-              )}
-            </section>
+                {tasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bot className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Noch keine Aktivität</p>
+                    <p className="text-xs text-gray-700 mt-0.5">Starte einen Scan um den Agenten zu aktivieren</p>
+                  </div>
+                ) : (
+                  <Timeline tasks={selectedSiteId ? tasks.filter(t => t.site_id === selectedSiteId) : tasks} />
+                )}
+              </section>
+            )}
 
             {/* Quick nav */}
             <section>
@@ -575,6 +774,14 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={() => setShowAddSite(true)}
+        className="fixed bottom-8 right-8 z-[60] w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+        aria-label="Site hinzufügen"
+      >
+        <Plus className="w-7 h-7" />
+      </button>
     </>
   );
 }
